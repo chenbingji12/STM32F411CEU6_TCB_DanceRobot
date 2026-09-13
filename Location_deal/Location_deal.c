@@ -5,7 +5,6 @@
 
 #include "Location_deal.h"
 
-IMU_Data_t *imu;
 volatile float yaw = 0.0f;
 volatile float pitch = 0.0f;
 volatile float roll = 0.0f;
@@ -14,19 +13,12 @@ volatile float self_yaw = 0.0f;//软件自校准yaw角度
 volatile float yaw_error = 0.0f;//yaw 偏差
 
 /**
- * @brief   初始化IMU数据
- */
-void Location_deal_Init(void)
-{
-    imu = IMU_GetData();
-}
-
-/**
  * @brief   获取当前IMU数据,放在主循环中调用
  * @retval  无
  */
-void Location_deal_GetIMUData(void)
+void Location_deal_GetIMUData(IMU_Data_t* imu)
 {
+    imu=IMU_GetData();
     if (imu->updated)
     {
         roll = imu->roll;
@@ -34,13 +26,14 @@ void Location_deal_GetIMUData(void)
         yaw = imu->yaw;
         imu->updated = 0;
     }
+		//printf("roll=%f,pitch=%f,yaw=%f\r\n",roll,pitch,yaw);
 }
 
 /**
  * @brief   软件归零（设置当前yaw为0度）
  * @retval  无
  */
-void Location_deal_ZeroYaw(void)
+void Location_deal_ZeroYaw(IMU_Data_t* imu)
 {
     float yaw_sum = 0.0f;
     for(uint8_t i=0;i<10;i++)
@@ -59,7 +52,7 @@ void Location_deal_ZeroYaw(void)
  * @brief   计算当前yaw角度的偏差
  * @retval  无
  */
-void Location_deal_CalcYawError(void)
+void Location_deal_CalcYawError(IMU_Data_t* imu)
 {
     yaw_error = imu->yaw - self_yaw;
 }

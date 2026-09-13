@@ -8,14 +8,13 @@
 
 #include "main.h"
 
+/***************************************帧动作*******************************************/
+
 extern const uint16_t Init_To_Half_Stand_Data[][16][3]; // 从初始状态到半起立动作数据
-extern const uint8_t Init_To_Half_Stand_Count; // 从初始状态到半起立动作的帧数
+extern uint8_t const Init_To_Half_Stand_Count; // 从初始状态到半起立动作的帧数
 
 extern const uint16_t Half_Stand_To_Full_Stand_Data[][16][3]; // 从半起立到完全起立动作数据
-extern const uint8_t Half_Stand_To_Full_Stand_Count; // 从半起立到完全起立动作的帧数
-
-extern const uint16_t Walk_Forward_Data[][16][3]; // 行走前进动作数据
-extern const uint8_t Walk_Forward_Count; // 行走前进动作的帧数
+extern uint8_t const Half_Stand_To_Full_Stand_Count; // 从半起立到完全起立动作的帧数
 
 /**
  *@brief   腿部动作调度结构体
@@ -35,8 +34,60 @@ void Init_To_Half_Stand(void);    // 从初始状态到半起立动作的执行�
 void Half_Stand_To_Init(void);    // 从半起立到初始状态动作的执行函数
 void Half_Stand_To_Full_Stand(void);    // 从半起立到完全起立动作的执行函数
 void Full_Stand_To_Half_Stand(void);    // 从完全起立到半起立动作的执行函数
-void Walk_Forward(void);    // 前进动作的执行函数
 
 void Leg_Action_Process(void);    // 腿部动作调度函数
+
+/**********************************************实时步态算法***********************************************/
+
+/**
+ * @brief   几种步态枚举
+ */
+typedef enum{
+    TROT=0, // 对角步态
+    TURTLE,   // 海龟步态
+    BOUND,  // 跳跃步态
+    WALK    // 行走步态
+}GaitMode;
+
+extern GaitMode gaitmode; // 步态模式枚举变量
+
+/**
+ * @brief   步态对应的相位
+ */
+typedef struct{
+    float phase_offset[4]; // 四条腿的相位偏移，单位：弧度
+}GaitPhaseOffset;
+
+/**
+ * @brief   步态算法参数结构体
+ */
+typedef struct{
+    float phase;//相位，单位：弧度
+    float period;//周期，单位：毫秒
+    float duty;//支撑相的占空比
+    uint16_t original_angle[3];//初始角度，0-1000的舵机值
+    float step_length;//步长，单位：厘米
+    float step_height;//步高，单位：厘米
+    float z_ground;//地面高度，单位：厘米
+    int8_t derection;//摆动方向
+}GaitParams;
+
+/**
+ * @brief   单条腿三个关节角度
+ */
+typedef struct{
+    float q[3];//关节角度，单位：弧度
+}LegAngles;
+
+/**
+ * @brief   四条腿的舵机id与偏移
+ */
+typedef struct{
+    uint8_t id[3];//舵机id,分别对应髋关节、膝关节、踝关节
+    uint16_t offset[3];//舵机偏移,0-1000
+}LegServo;
+
+void Get_Step_Length(float v,float w,float T);
+void Realtime_Gait_Process(void);
 
 #endif

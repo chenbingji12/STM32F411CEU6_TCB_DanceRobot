@@ -68,6 +68,8 @@ volatile float voltage_sum = 0.0f;    //电池电压采样累加值
 volatile uint8_t voltage_count = 0;    //电池电压采样计
 volatile float battery_voltage = 0.0f;    //电池电压，单位伏特
 
+IMU_Data_t *imu;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -139,14 +141,12 @@ HAL_UARTEx_ReceiveToIdle_DMA(&huart6, (uint8_t*)uart6_rx_buf, sizeof(uart6_rx_bu
 
 IMU_Init(&huart2);    //启动IMU模块DMA接收
 
-Location_deal_Init();//初始化IMU数据
-
 I2S_Beat_Init();    //启动 I2S2 DMA 循环接收
 //flag.beat_active = 1;   //节拍检测任务激活
 
 WS2812_Init();    //启动WS2812B灯带驱动
 
-OpticalFlow_Init();    //初始化光流传感器
+//OpticalFlow_Init();    //初始化光流传感器
 
 Servo_pwm_Init(140.0f);    //初始化舵机PWM
 
@@ -164,13 +164,13 @@ HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);//LED 点亮
 
     /* USER CODE BEGIN 3 */
 
-    if(battery_voltage < 6.7f)   //电池电压低于6.7V，提示用户更换电池
+    if(battery_voltage < 6.45f)   //电池电压低于6.7V，提示用户更换电池
     {
 //      (g_mode==DEBUG) && SEGGER_RTT_printf(0,"[Warning] Battery voltage is low: %.2fV, please replace the battery!\n", battery_voltage);
 //      (g_mode==DEBUG) && printf("[Warning] Battery voltage is low: %.2fV, please replace the battery!\n", battery_voltage);
       HAL_GPIO_WritePin(BEEP_GPIO_Port, BEEP_Pin, GPIO_PIN_SET);   //蜂鸣器响
     }
-    else if(battery_voltage >= 6.8f)   //电池电压恢复正常，蜂鸣器不响,迟滞区间0.1V，避免频繁响起
+    else if(battery_voltage >= 6.55f)   //电池电压恢复正常，蜂鸣器不响,迟滞区间0.1V，避免频繁响起
     {
       HAL_GPIO_WritePin(BEEP_GPIO_Port, BEEP_Pin, GPIO_PIN_RESET);   //蜂鸣器不响
     }
@@ -196,9 +196,9 @@ HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);//LED 点亮
       HAL_UARTEx_ReceiveToIdle_DMA(&huart1, (uint8_t*)uart1_rx_buf, sizeof(uart1_rx_buf));  //重新开启DMA接收
     }
 
-    OpticalFlow_Data_t* flow_data = OpticalFlow_ProcessData(&flag.flow_data_update);
-    float x=flow_data->distance_x;
-    float y=flow_data->distance_y;
+//    OpticalFlow_Data_t* flow_data = OpticalFlow_ProcessData(&flag.flow_data_update);
+//    float x=flow_data->distance_x;
+//    float y=flow_data->distance_y;
 
     Leg_Action_Process();    //腿部动作处理函数
 
@@ -206,7 +206,10 @@ HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);//LED 点亮
 
     Task_Process();    //任务处理函数
 
-    Location_deal_GetIMUData();    //获取当前IMU数据
+    Location_deal_GetIMUData(imu);    //获取当前IMU数据
+
+    BeatData* data_current = Get_BeatData();    //获取当前节拍数据指针
+    Update_BeatIndex(data_current);    //更新当前节拍索引
 
 		tick = HAL_GetTick();
 
@@ -354,7 +357,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
   {
     if(flag.zero_yaw == 1)//如果软件归零标志为已归零
     {
-        Location_deal_CalcYawError();//计算当前yaw角度的偏差
+        Location_deal_CalcYawError(imu);//计算当前yaw角度的偏差
     }
   }
 

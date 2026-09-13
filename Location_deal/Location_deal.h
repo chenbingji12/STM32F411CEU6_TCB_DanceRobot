@@ -6,12 +6,11 @@
  #ifndef __LOCATION_DEAL_H
  #define __LOCATION_DEAL_H
 
- #include "main.h"
+ #include "IMU.h"
 
-void Location_deal_Init(void);
-void Location_deal_GetIMUData(void);
-void Location_deal_ZeroYaw(void);
-void Location_deal_CalcYawError(void);
+void Location_deal_GetIMUData(IMU_Data_t *imu);
+void Location_deal_ZeroYaw(IMU_Data_t *imu);
+void Location_deal_CalcYawError(IMU_Data_t *imu);
 void Location_deal_ClearYawError(void);
 
  #endif

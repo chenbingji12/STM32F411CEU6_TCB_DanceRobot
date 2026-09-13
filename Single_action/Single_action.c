@@ -90,13 +90,14 @@ void Stop(char *param)
     printf("Stop success\n");
 }
 
+extern IMU_Data_t *imu;
 /**
  * @brief   软件归零（设置当前yaw为0度）
  * @retval  无
  */
 void Zero_Yaw(char *param)
 {
-    Location_deal_ZeroYaw();//软件归零
+    Location_deal_ZeroYaw(imu);//软件归零
     flag.zero_yaw = 1;    //设置软件归零标志为已归零
     printf("Zero_Yaw success\n");
 }
@@ -123,26 +124,29 @@ void Gamepad_Control(char *param)
     char d;
     static uint8_t btns_flag1=0;//按钮状态标志位，用于判断是否需要读取舵机角度
     static uint8_t btns_flag2=0;//按钮状态标志位，用于判断是否需要改变摇杆比例系数
-    static float p=0.0001f;//摇杆比例系数
-    static float servo_1=500.0f;
-    static float servo_2=500.0f;
-    static float servo_3=500.0f;
-    static float servo_4=500.0f;
+    static float p=0.00005f;//摇杆比例系数
+    static float v=0.0f;//线速度，单位：米/秒
+    static float w=0.0f;//角速度，单位：弧度/
+    static float T=1.5f;//周期，单位：秒
+    static float servo_17=500.0f;
+    static float servo_18=500.0f;
+    static float servo_19=500.0f;
+    static float servo_20=500.0f;
     if(sscanf(param,"%d,LY:%d,RX:%d,RY:%d,LT:%d,RT:%d,BTNS:%d,D:%c",&lx,&ly,&rx,&ry,&lt,&rt,&btns,&d)==8)
     {
       if((btns_flag1==0)&&(btns/100==1))//左摇杆按键按下
       {
         btns_flag1=1;//按钮按下，不允许重复读取舵机角度
-        servo_1=Servo_ReadPos(1);
-        servo_2=Servo_ReadPos(2);
-        servo_3=Servo_ReadPos(3);
-        servo_4=Servo_ReadPos(4);
+        servo_17=Servo_ReadPos(17);
+        servo_18=Servo_ReadPos(18);
+        servo_19=Servo_ReadPos(19);
+        servo_20=Servo_ReadPos(20);
       }
       if(btns/200==1)//右摇杆按键按下
       {
-        for(uint8_t id=1;id<=4;id++)
+        for(uint8_t id=17;id<=20;id++)
         {
-          Servo_Write(id,500,0);
+          Servo_Write(id,500,1000);
         }
       }
       if(btns/100==0)
@@ -153,12 +157,14 @@ void Gamepad_Control(char *param)
       if((btns_flag2==0)&&(btns%100/40==1))//减号按键按下
       {
         btns_flag2=1;//按钮按下，不允许改变摇杆比例系数
-        p=p*0.8f;
+        //p=p*0.8f;
+        T=T-0.2f;
       }
       if((btns_flag2==0)&&(btns%100/80==1))//加号按键按下
       {
         btns_flag2=1;//按钮按下，不允许改变摇杆比例系数
-        p=p*1.25f;
+        //p=p*1.25f;
+        T=T+0.2f;
       }
       if(btns%100/10==0)
       {
@@ -167,31 +173,41 @@ void Gamepad_Control(char *param)
 
       if(btns%100/10==1)//左侧按键按下
       {
-
+        flag.half_stand_to_init=1;
       }
       if(btns%100/20==1)//右侧按键按下
       {
-
+        T=1.5f;
+        w=0.0f;
+        v=0.0f;
       }
 
       if(btns%10/1==1)//A按键按下
       {
-
+        v=v-0.002f;
       }
       if(btns%10/2==1)//B按键按下
       {
-
+        w=w+0.02f;
+      }
+      else if(btns%10/2==0)
+      {
+        flag.turn_right=0;
       }
       if(btns%10/4==1)//Y按键按下
       {
-
+        v=v+0.002f;
       }
       if(btns%10/8==1)//X按键按下
       {
-
+        w=w-0.02f;
+      }
+      else if(btns%10/8==0)
+      {
+        flag.turn_left=0;
       }
 
-      if(lt>0)//左扳机按下
+      if(lt>50)//左扳机按下
       {
         flag.init_to_half_stand=1;
       }
@@ -199,7 +215,7 @@ void Gamepad_Control(char *param)
       {
 
       }
-      if(rt>0)//右扳机按下
+      if(rt>50)//右扳机按下
       {
         flag.half_stand_to_full_stand=1;
       }
@@ -211,38 +227,52 @@ void Gamepad_Control(char *param)
       switch(d)//方向键按下
       {
         case 'U':
+        flag.walk_forward=1;
           break;
         case 'D':
+        flag.walk_backward=1;
           break;
         case 'L':
+        flag.move_to_left=1;
           break;
         case 'R':
+        flag.move_to_right=1;
           break;
         default:
+        flag.walk_forward=0;
+        flag.walk_backward=0;
+        flag.move_to_left=0;
+        flag.move_to_right=0;
           break;
       }
 
       if(abs(lx)>260)
       {
-      servo_1=servo_1+lx*p;
-      Servo_Write(1, (uint16_t)servo_1, 0);
+      servo_17=servo_17+lx*p;
+      Servo_Write(17, (uint16_t)servo_17, 0);
       }
       if(abs(ly)>260)
       {
-      servo_2=servo_2+ly*p;
-      Servo_Write(2, (uint16_t)servo_2, 0);
+      servo_18=servo_18+ly*p;
+      Servo_Write(18, (uint16_t)servo_18, 0);
       }
       if(abs(rx)>260)
       {
-      servo_3=servo_3+rx*p;
-      Servo_Write(3, (uint16_t)servo_3, 0);
+      servo_19=servo_19+rx*p;
+      Servo_Write(19, (uint16_t)servo_19, 0);
       }
       if(abs(ry)>260)
       {
-      servo_4=servo_4+ry*p;
-      Servo_Write(4, (uint16_t)servo_4, 0);
+      servo_20=servo_20+ry*p;
+      Servo_Write(20, (uint16_t)servo_20, 0);
       }
     }
+    /* 统一计算移动标志: 任一方向/旋转标志为1则移动 */
+    flag.moving = (flag.walk_forward || flag.walk_backward ||
+                     flag.move_to_left || flag.move_to_right ||
+                     flag.turn_left || flag.turn_right) ? 1 : 0;
+
+    Get_Step_Length(v,w,T);
 }
 
 /**
@@ -260,6 +290,7 @@ void Set_pwm_Servo_TargetAngle(char *param)
     }
 }
 
+extern BeatData beat_data;
 /**
  * @brief   解析从上位机传输的节拍数据
  * @param  param: 参数字符串
@@ -271,6 +302,15 @@ void Receive_Bmp(char *param)
     if(sscanf(param,"%d,%d,%d,%d,%d,%d,%d,%d,%d,%d",&bmp[0],&bmp[1],
       &bmp[2],&bmp[3],&bmp[4],&bmp[5],&bmp[6],&bmp[7],&bmp[8],&bmp[9])==10)
       {
+        for(uint8_t i=0;i<10;i++)
+        {
+          beat_data.beat_data[beat_data.beat_count]=bmp[i];
+          beat_data.beat_count++;
+          if(beat_data.beat_count>=500)
+          {
+            beat_data.beat_count=500;
+          }
+        }
         (g_mode==DEBUG) && SEGGER_RTT_printf(0,"[Receive_Bmp] %d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
           bmp[0],bmp[1],bmp[2],bmp[3],bmp[4],bmp[5],bmp[6],bmp[7],bmp[8],bmp[9]);
       }
