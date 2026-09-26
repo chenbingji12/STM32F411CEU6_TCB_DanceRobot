@@ -1,0 +1,170 @@
+import wiringpi
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+from std_srvs.srv import SetBool
+from . import command as cmd
+from .command import GESTURE_COMMANDS
+
+#机器人状态
+ROBOT_STATUS={
+    'WAIT_READY':0,
+    'READY':1,
+    'SEARCH_CENTER':2,
+    'MOVE_TO_CENTER':3,
+    'WAIT_SHOW':4,
+    'GESTURE':5,
+    'MUSIC_RECOGNITION':6,
+    'DANCE':7,
+    'END':8,
+    'ERROR':9,
+}
+class ShowManagerNode(Node):
+
+    def __init__(self):
+        super().__init__('show_manager_node')
+
+        #创建STM32命令发布话题，消息类型为String
+        self.stm32_command_publisher = self.create_publisher(String, '/stm32/command_publish', 10)
+
+        #创建STM32命令接收话题，消息类型为String
+        self.stm32_command_subscriber = self.create_subscription(String, '/stm32/command_receive',
+         self.stm32_command_callback, 10)
+
+        #创建语音模块指令接收话题，消息类型为String
+        self.voice_event_subscriber = self.create_subscription(String, '/voice/event',
+         self.voice_event_callback, 10)
+
+        #创建接收手势识别指令话题，消息类型为String
+        self.gesture_topic_subscriber = self.create_subscription(String, '/vision/gesture',
+         self.gesture_topic_callback, 10)
+
+        #创建手势识别开启结束服务
+        self.vision_client = self.create_client(SetBool, '/vision/start')
+        self.vision_request_pending = False
+
+        # 当前状态属于节点实例，不能使用全局变量保存。
+        self.robot_status = 'WAIT_READY'
+
+        self.get_logger().info('show_manager_node open success')
+
+    # 处理stm32命令
+    def stm32_command_callback(self, message):
+
+        command=message.data.strip()
+        answer=cmd.stm32_command_callback(command)
+
+        #如果answer不为空，发送到stm32串口
+        if answer is not None:
+            message = String()
+            message.data = answer
+            self.stm32_command_publisher.publish(message)
+
+            self.get_logger().info(f'stm32_publish: {message}')
+
+    #处理语音模块指令
+    def voice_event_callback(self, message):
+
+        event = message.data.strip()
+
+        if event == 'gesture_begin':
+            self.request_vision(True)
+        elif event == 'gesture_end':
+            self.request_vision(False)
+        else:
+            # 其它语音事件暂时继续交给原来的命令表处理。
+            cmd.voice_event_callback(event)
+
+    # 处理手势识别指令
+    def gesture_topic_callback(self, message):
+
+        gesture=message.data.strip()
+
+        if self.robot_status != 'GESTURE':
+            self.get_logger().info(
+                f'current status is {self.robot_status}, not gesture status'
+            )
+            return
+
+        # 从手势识别指令字典中获取对应指令
+        gesture_command=GESTURE_COMMANDS.get(gesture)
+        if gesture_command is None:
+            self.get_logger().info(f'gesture {gesture} not found')
+            return
+            
+        self.stm32_command_publisher.publish(String(data=gesture_command))
+        self.get_logger().info(f'gesture {gesture} command: {gesture_command}')
+
+    def request_vision(self, enabled):
+        """异步请求 VisionAdapterNode 启动或停止视觉识别。"""
+        if self.vision_request_pending:
+            self.get_logger().warning(
+                '上一次视觉 Service 请求还没有完成，忽略本次请求'
+            )
+            return
+
+        if not self.vision_client.wait_for_service(timeout_sec=0.5):
+            self.get_logger().error(
+                '找不到 /vision/start，请确认 vision_adapter_node 正在运行'
+            )
+            return
+
+        request = SetBool.Request()
+        request.data = enabled
+        self.vision_request_pending = True
+
+        future = self.vision_client.call_async(request)
+        future.add_done_callback(
+            lambda result: self.vision_response_callback(result, enabled)
+        )
+
+        action = '启动' if enabled else '停止'
+        self.get_logger().info(f'已异步发送视觉{action}请求')
+
+    def vision_response_callback(self, future, enabled):
+        """处理 VisionAdapterNode 返回的异步 Service 响应。"""
+        self.vision_request_pending = False
+
+        try:
+            response = future.result()
+        except Exception as error:
+            self.get_logger().error(f'调用视觉 Service 异常：{error}')
+            self.robot_status = 'ERROR'
+            return
+
+        if not response.success:
+            self.get_logger().error(
+                f'视觉操作失败：{response.message}'
+            )
+            self.robot_status = 'ERROR'
+            return
+
+        if enabled:
+            self.robot_status = 'GESTURE'
+        else:
+            self.robot_status = 'WAIT_SHOW'
+
+        self.get_logger().info(
+            f'视觉 Service 响应：{response.message}，'
+            f'当前状态：{self.robot_status}'
+        )
+
+    def destroy_node(self):
+
+        self.get_logger().info('show_manager_node close success')
+        super().destroy_node()
+
+def main():
+    rclpy.init()
+    node = ShowManagerNode()
+
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()

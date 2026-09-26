@@ -40,6 +40,11 @@ uint32_t ws2812_change_interval_ms = 39;   //WS2812B灯带刷新任务周期，3
 uint32_t realtime_gait_interval_ms = 25;   //实时步态任务周期，25ms
 
 /**
+  * @brief  角度校正任务周期与激活状态
+  */
+uint32_t angle_correct_interval_ms = 10;   //角度校正任务周期，10ms
+
+/**
   * @brief  表驱动的时间触发合作式调度器
   */
 TaskDef task_table[] = {
@@ -47,6 +52,7 @@ TaskDef task_table[] = {
     {I2S_Beat_Task,&beat_task_interval_ms, 0, (uint8_t*)&flag.beat_active},
     {I2S_Beat_Action,&beat_action_task_interval_ms, 0, (uint8_t*)&flag.beat_active},
     {WS2812_Change,&ws2812_change_interval_ms,0,(uint8_t*)&flag.ws2812_change},
+    {Angle_Correct_Process,&angle_correct_interval_ms,0,(uint8_t*)&flag.moving},
     {Realtime_Gait,&realtime_gait_interval_ms,0,(uint8_t*)&flag.moving},
 };
 

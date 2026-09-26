@@ -26,6 +26,8 @@ typedef struct{
 
 void Servo_pwm_Init(float init_angle);
 
+void Servo_pwm_SetAngle(float angle);
+
 void Set_Servo_pwm_TargetAngle(float angle, uint16_t run_time);
 
 void Update_Servo_pwm_Angle(void);

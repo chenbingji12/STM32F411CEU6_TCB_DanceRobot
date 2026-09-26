@@ -51,6 +51,7 @@ extern "C" {
 #include "Optical_flow.h"
 #include "WS2812.h"
 #include "Servo_pwm.h"
+#include "arm_math.h"
 
 /* USER CODE END Includes */
 
@@ -83,6 +84,7 @@ typedef struct {
     uint8_t turn_left;
     uint8_t turn_right;
     uint8_t moving;          //移动动作执行标志
+    uint8_t angle_correct;     //角度校正任务激活标志
     uint8_t flow_active;        //光流任务激活标志
     uint8_t flow_data_update;   //光流数据更新标志
 } Flag;
@@ -120,7 +122,6 @@ void Error_Handler(void);
 
 /* USER CODE BEGIN Private defines */
 
-#define PI 3.1415926f //圆周率
 #define UART1_RX_SIZE (64)//UART1 接收缓冲区大小，64 字节
 #define UART6_RX_SIZE (100)//UART6 接收缓冲区大小，100 字节
 #define VOLTAGE_DIVIDER_RATIO 0.384615f //分压系数：10K/(10K+16K)=0.384615，电压采样值=ADC采样值*3.3/4095/0.384615

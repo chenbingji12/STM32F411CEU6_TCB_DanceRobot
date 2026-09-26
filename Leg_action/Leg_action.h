@@ -87,7 +87,18 @@ typedef struct{
     uint16_t offset[3];//舵机偏移,0-1000
 }LegServo;
 
+/**
+ * @brief   设定的角速度
+ */
+typedef struct{
+    float target_w;//设定的角速度，单位：弧度/秒
+    float target_v;//设定的速度，单位：米/秒
+    float correct_w;//校正的角速度，单位：弧度/秒
+    float correct_v;//校正的速度，单位：米/秒
+}SpeedParams;
+
 void Get_Step_Length(float v,float w,float T);
 void Realtime_Gait_Process(void);
+void Angle_Correct_Process(void);
 
 #endif

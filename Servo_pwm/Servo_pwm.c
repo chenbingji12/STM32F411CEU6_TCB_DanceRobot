@@ -7,7 +7,7 @@
 static MG90S_Smooth_Control s_smooth_control = {0};//平滑控制结构体
 
 static void Servo_pwm_SetPulse(uint16_t pulse_us);
-static void Servo_pwm_SetAngle(float angle);
+
 void Set_Servo_pwm_TargetAngle(float angle, uint16_t run_time);
 
 /**
@@ -48,7 +48,7 @@ static void Servo_pwm_SetPulse(uint16_t pulse_us)
  * @param   angle  角度值
  * @retval  None
  * */
-static void Servo_pwm_SetAngle(float angle)
+void Servo_pwm_SetAngle(float angle)
 {
     // 角度转换为脉宽
     uint16_t pulse_us = (uint16_t)(500.0f+2000.0f/180.0f*angle);
@@ -69,7 +69,6 @@ void Set_Servo_pwm_TargetAngle(float angle, uint16_t run_time)
     s_smooth_control.start_time = HAL_GetTick();
     s_smooth_control.start_angle = s_smooth_control.current_angle;
 }
-
 /**
  * @brief   更新舵机角度,用5次S型曲线法平滑控制舵机角度,在20ms的定时器中断中调用
  * @retval  None

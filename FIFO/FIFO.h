@@ -24,4 +24,9 @@ extern uint8_t fifo_packet[10];
 uint8_t Fifo_Write(fifo_t *fifo, uint8_t *packet, uint8_t len);
 uint8_t Fifo_Read(fifo_t *fifo, uint8_t *packet, uint8_t *len);
 
+uint8_t Printf_TxFifoWrite(uint8_t ch);
+void Printf_TxStartNext(void);
+void Printf_TxComplete(void);
+void Printf_TxAbortCurrent(void);
+
 #endif

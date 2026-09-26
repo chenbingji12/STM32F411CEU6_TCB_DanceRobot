@@ -113,6 +113,8 @@ void Off_Zero_Yaw(char *param)
     printf("Off_Zero_Yaw success\n");
 }
 
+extern GaitMode gaitmode;
+extern SpeedParams speedparams;
 /**
  * @brief   游戏手柄远程遥控数据处理
  * @param  param: 参数字符串
@@ -124,16 +126,62 @@ void Gamepad_Control(char *param)
     char d;
     static uint8_t btns_flag1=0;//按钮状态标志位，用于判断是否需要读取舵机角度
     static uint8_t btns_flag2=0;//按钮状态标志位，用于判断是否需要改变摇杆比例系数
+    static uint8_t change_gaitmode=0;//按钮状态标志位，用于判断是否需要改变gaitmode
+    static uint8_t last_moving = 0; // 上一帧是否处于运动状态
     static float p=0.00005f;//摇杆比例系数
-    static float v=0.0f;//线速度，单位：米/秒
-    static float w=0.0f;//角速度，单位：弧度/
     static float T=1.5f;//周期，单位：秒
     static float servo_17=500.0f;
     static float servo_18=500.0f;
     static float servo_19=500.0f;
     static float servo_20=500.0f;
+    static float pwm_servo=90.0f;//舵机PWM角度
     if(sscanf(param,"%d,LY:%d,RX:%d,RY:%d,LT:%d,RT:%d,BTNS:%d,D:%c",&lx,&ly,&rx,&ry,&lt,&rt,&btns,&d)==8)
     {
+      if(btns%100/20==1)//右侧按键按下
+      {
+        if(btns%100/30==1)//左侧按键按下
+        {
+        T=1.5f;
+        speedparams.target_w=0.0f;
+        speedparams.target_v=0.0f;
+        }
+        if(lt>50)//左扳机按下
+        {
+          if(change_gaitmode==0)
+          {
+            change_gaitmode=1;
+          switch(gaitmode)
+          {
+            case TROT:
+              gaitmode=TURTLE;
+              break;
+            case TURTLE:
+              gaitmode=BOUND;
+              break;
+            case BOUND:
+              gaitmode=WALK;
+              break;
+            case WALK:
+              gaitmode=TROT;
+              break;
+            default:
+              break;
+          }
+        }
+        }
+        else if(lt==0)
+        {
+          change_gaitmode=0;
+        }
+
+        if(abs(lx)>260)
+        {
+          pwm_servo=pwm_servo+lx*p;
+          pwm_servo=pwm_servo>120?120:pwm_servo<90?90:pwm_servo;
+          Servo_pwm_SetAngle(pwm_servo);
+        }
+      }
+      else{//右侧按键松开
       if((btns_flag1==0)&&(btns/100==1))//左摇杆按键按下
       {
         btns_flag1=1;//按钮按下，不允许重复读取舵机角度
@@ -148,6 +196,10 @@ void Gamepad_Control(char *param)
         {
           Servo_Write(id,500,1000);
         }
+        servo_17=500.0f;
+        servo_18=500.0f;
+        servo_19=500.0f;
+        servo_20=500.0f;
       }
       if(btns/100==0)
       {
@@ -175,20 +227,14 @@ void Gamepad_Control(char *param)
       {
         flag.half_stand_to_init=1;
       }
-      if(btns%100/20==1)//右侧按键按下
-      {
-        T=1.5f;
-        w=0.0f;
-        v=0.0f;
-      }
 
       if(btns%10/1==1)//A按键按下
       {
-        v=v-0.002f;
+        speedparams.target_v=speedparams.target_v-0.002f;
       }
       if(btns%10/2==1)//B按键按下
       {
-        w=w+0.02f;
+        speedparams.target_w=speedparams.target_w+0.02f;
       }
       else if(btns%10/2==0)
       {
@@ -196,11 +242,11 @@ void Gamepad_Control(char *param)
       }
       if(btns%10/4==1)//Y按键按下
       {
-        v=v+0.002f;
+        speedparams.target_v=speedparams.target_v+0.002f;
       }
       if(btns%10/8==1)//X按键按下
       {
-        w=w-0.02f;
+        speedparams.target_w=speedparams.target_w-0.02f;
       }
       else if(btns%10/8==0)
       {
@@ -249,30 +295,44 @@ void Gamepad_Control(char *param)
       if(abs(lx)>260)
       {
       servo_17=servo_17+lx*p;
+      servo_17=servo_17>1000?1000:servo_17<0?0:servo_17;//限制舵机角度在0-1000之间
       Servo_Write(17, (uint16_t)servo_17, 0);
       }
       if(abs(ly)>260)
       {
       servo_18=servo_18+ly*p;
+      servo_18=servo_18>1000?1000:servo_18<0?0:servo_18;//限制舵机角度在0-1000之间
       Servo_Write(18, (uint16_t)servo_18, 0);
       }
       if(abs(rx)>260)
       {
       servo_19=servo_19+rx*p;
+      servo_19=servo_19>1000?1000:servo_19<0?0:servo_19;//限制舵机角度在0-1000之间
       Servo_Write(19, (uint16_t)servo_19, 0);
       }
       if(abs(ry)>260)
       {
       servo_20=servo_20+ry*p;
+      servo_20=servo_20>1000?1000:servo_20<0?0:servo_20;//限制舵机角度在0-1000之间
       Servo_Write(20, (uint16_t)servo_20, 0);
       }
     }
-    /* 统一计算移动标志: 任一方向/旋转标志为1则移动 */
-    flag.moving = (flag.walk_forward || flag.walk_backward ||
-                     flag.move_to_left || flag.move_to_right ||
-                     flag.turn_left || flag.turn_right) ? 1 : 0;
+  }
+    uint8_t current_moving =
+    (flag.walk_forward || flag.walk_backward ||
+     flag.move_to_left || flag.move_to_right ||
+     flag.turn_left || flag.turn_right) ? 1U : 0U;
 
-    Get_Step_Length(v,w,T);
+/* 运动状态从停止变为运动时，只触发一次角度校正 */
+flag.angle_correct = (current_moving == 1U && last_moving == 0U) ? 1U : 0U;
+
+/* 持续运动期间只保持 moving，不重复触发 angle_correct */
+flag.moving = current_moving;
+
+/* 保存本次运动状态，供下一帧比较 */
+last_moving = current_moving;
+
+    Get_Step_Length(speedparams.target_v,speedparams.target_w,T);
 }
 
 /**
@@ -316,6 +376,22 @@ void Receive_Bmp(char *param)
       }
     }
 
+/**
+ * @brief   移动机器人
+ * @param  param: 参数字符串
+ * @retval  无
+ */
+void Move(char *param)
+{
+    float v,w;
+    if(sscanf(param,"%f %f",&v,&w)==2)
+    {
+        flag.walk_forward=1;
+        flag.moving=1;
+        flag.angle_correct=1;
+    }
+}
+
 /***********************动作数组定义*********************/
 static const Action action[] = {
     {"reset_whole", 0, 0,Reset_Whole},
@@ -334,6 +410,7 @@ static const Action action[] = {
     {"pwm_servo_set ",1,0,Set_pwm_Servo_TargetAngle},
     {"opticalflow_data_reset",0,0,OpticalFlow_Data_Reset},
     {"[",1,0,Receive_Bmp},
+    {"move ",1,0,Move},
 }; // 动作表，存放所有动作的名称和对应的函数指针
 
 /**************查找动作名称字符串在动作表中的位置***********/

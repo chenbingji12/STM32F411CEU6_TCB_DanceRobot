@@ -10,6 +10,8 @@
 
 GaitMode gaitmode = TROT; // 步态模式枚举变量，初始为对角步态
 
+SpeedParams speedparams={0.0f}; // 当前角度校正参数，初始为0
+
 static LegServo left_front={{7,6,5},{0,0,0}}; // 左前腿舵机id与偏移
 static LegServo right_front={{3,2,1},{0,0,0}}; // 右前腿舵机id与偏移
 static LegServo left_back={{11,10,9},{0,0,0}}; // 左后腿舵机id与偏移
@@ -71,6 +73,7 @@ static void Choose_Leg_Direction(Flag flag)
     }
 }
 
+static float target_w=0.0f;
 /**
  * @brief   设定线速度v，角速度w,周期T，返回左右侧腿的步长
  * @param v 线速度，单位：米/秒
@@ -83,6 +86,10 @@ void Get_Step_Length(float v,float w,float T)
     right_front_params.period=
     right_back_params.period=
     T*1000.0f;
+
+    target_w=w;
+
+    w=w+speedparams.correct_w;
 
     if(w==0.0f)//直线运动
     {
@@ -103,6 +110,7 @@ void Get_Step_Length(float v,float w,float T)
         right_front_params.step_length=
         right_back_params.step_length=(right_v/T)*100;//右腿的步长，单位转化为厘米
     }
+    printf("w=%f\n",w);
 }
 
 /**
@@ -225,11 +233,24 @@ static void Gait_Phase_Calc(uint32_t period)
     GaitPhaseOffset* four_leg=Phase_Offset(gaitmode);
 
     uint32_t current_time = HAL_GetTick();
-    float base_phase = (float)(current_time % period) / (float)period;
-    left_front_params.phase=Wrap_Phase(base_phase+four_leg->phase_offset[0]);
-    right_front_params.phase=Wrap_Phase(base_phase+four_leg->phase_offset[1]);
-    left_back_params.phase=Wrap_Phase(base_phase+four_leg->phase_offset[2]);
-    right_back_params.phase=Wrap_Phase(base_phase+four_leg->phase_offset[3]);
+    static uint32_t last_time = 0;
+    if(last_time==0||current_time-last_time>150)
+    {
+        last_time=current_time;
+        return;
+    }
+
+    static float base_phase = 0.0f;
+    base_phase = Wrap_Phase(base_phase+(float)(current_time-last_time) / (float)period);
+    left_front_params.phase=Wrap_Phase(
+    base_phase+four_leg->phase_offset[0]);
+    right_front_params.phase=Wrap_Phase(
+    base_phase+four_leg->phase_offset[1]);
+    left_back_params.phase=Wrap_Phase(
+    base_phase+four_leg->phase_offset[2]);
+    right_back_params.phase=Wrap_Phase(
+    base_phase+four_leg->phase_offset[3]);
+    last_time=current_time;
 
     LegAngles left_front_angles=Leg_Trajectory(&left_front_params);
     LegAngles right_front_angles=Leg_Trajectory(&right_front_params);
@@ -255,6 +276,134 @@ static void Gait_Phase_Calc(uint32_t period)
                 Radian_To_Angle(right_back_angles.q[i])+right_back.offset[i]),
                 25);
     }
+}
+
+/**
+ * @brief   角度限制
+ * @param angle 角度
+ * @return float 角度限制后的值
+ */
+static float Wrap_Angle(float angle)
+{
+    while(angle > 180.0f)
+    {
+        angle -= 360.0f;
+    }
+
+    while(angle < -180.0f)
+    {
+        angle += 360.0f;
+    }
+
+    return angle;
+}
+
+/**
+ * @brief   计算一个步态周期的角度偏移值
+ * @param gait_period 步态周期，单位：毫秒
+ * @param target_angle 目标角度
+ * @param current_angle 当前角度
+ * @return float 角度偏移值
+ */
+static float Angle_Correct(float gait_period,float target_angle,float current_angle,uint8_t* update_flag)
+{
+    static float error_sum = 0.0f;
+    static uint32_t count = 0;
+    static uint32_t start_time = 0;
+    static float angle_correct = 0.0f;
+
+    if(update_flag != NULL)
+    {
+    *update_flag = 0U;
+    }
+    uint32_t current_time = HAL_GetTick();
+    if(start_time==0)
+    {
+        start_time=current_time;
+        return 0.0f;
+    }
+    
+    float error=Wrap_Angle(target_angle-current_angle);
+    error_sum += error;
+    count++;
+    if(current_time-start_time>=gait_period)
+    {
+        angle_correct = error_sum/count;
+        error_sum = 0.0f;
+        count = 0;
+        start_time = current_time;
+        *update_flag = 1;
+    }
+ 
+    return angle_correct;
+}
+
+/**
+ * @brief   用PID调整角速度
+ * @param gait_period 步态周期，单位：毫秒
+ * @param target_angle 目标角度
+ * @param current_angle 当前角度
+ * @return float 角度偏移值
+ */
+static float Angle_Correct_PID(float gait_period,float target_angle,float current_angle)
+{
+    static float kp=0.01f;
+    static float ki=0.0f;
+    static float kd=0.0f;
+    static float last_error = 0.0f;
+    static float error_sum = 0.0f;
+    static float error = 0.0f;
+    static float correct_w=0.0f;
+    static uint32_t last_time = 0;
+
+    uint32_t current_time = HAL_GetTick();
+    uint8_t angle_correct_update = 0;
+    float dt=(float)(current_time-last_time)/1000.0f;
+
+    error=Angle_Correct(gait_period,target_angle,current_angle,&angle_correct_update);
+    if(angle_correct_update==1)
+    {
+        if(last_time == 0 || dt <= 0.0f)
+    {
+        last_time = current_time;
+        last_error = error;
+        return correct_w;
+    }
+        error_sum += error*dt;
+        correct_w = kp*error+ki*error_sum+kd*(error-last_error)/dt;
+        last_error = error;
+        last_time = current_time;
+    }
+    correct_w = correct_w>0.3f?0.3f:correct_w<-0.3f?-0.3f:correct_w;
+    return correct_w;
+}
+
+/**
+ * @brief   计算角度偏差，在task.c中调用，每10ms执行一次
+ */
+void Angle_Correct_Process(void)
+{
+    static float target_yaw=0.0f;
+    static uint32_t last_time = 0;
+
+    IMU_Data_t *imu=IMU_GetData();
+
+    if(flag.angle_correct == 1)
+    {
+    target_yaw = imu->yaw;
+    speedparams.correct_w = 0.0f;
+    flag.angle_correct = 0;
+    last_time = HAL_GetTick();
+    }
+    else
+    {
+    target_yaw=(target_w*(float)(HAL_GetTick()-last_time)/1000.0f)/PI*180.0f+target_yaw;
+    
+    speedparams.correct_w=Angle_Correct_PID(left_front_params.period,target_yaw,imu->yaw);
+    }
+    last_time=HAL_GetTick();
+    printf("correct_w=%f\n",speedparams.correct_w);
+    printf("imu->yaw=%f\n",imu->yaw);
 }
 
 /**

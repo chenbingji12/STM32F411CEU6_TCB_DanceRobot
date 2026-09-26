@@ -148,7 +148,7 @@ WS2812_Init();    //启动WS2812B灯带驱动
 
 //OpticalFlow_Init();    //初始化光流传感器
 
-Servo_pwm_Init(140.0f);    //初始化舵机PWM
+Servo_pwm_Init(90.0f);    //初始化舵机PWM
 
 HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);//LED 点亮
 
@@ -313,7 +313,13 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart,uint16_t Size)
   */
   int fputc(int c, FILE *f)
   {
-    HAL_UART_Transmit(&huart6, (uint8_t *)&c, 1,10);//将字符发送到上位机
+    uint8_t ch = (uint8_t)c;
+
+    if (Printf_TxFifoWrite(ch) == 1U)
+    {
+      Printf_TxStartNext();
+    }
+
     return c;
   }
 
@@ -339,6 +345,25 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
             HAL_HalfDuplex_EnableReceiver(&huart1);
             HAL_UARTEx_ReceiveToIdle_DMA(&huart1, (uint8_t*)uart1_rx_buf, sizeof(uart1_rx_buf));
         }
+    }
+    else if (huart->Instance == USART6)
+    {
+        Printf_TxComplete();
+        Printf_TxStartNext();
+    }
+}
+
+/**
+  * @brief  UART错误回调函数
+  * @param  huart: UART句柄
+  * @retval 无
+  */
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
+{
+    if (huart->Instance == USART6)
+    {
+        Printf_TxAbortCurrent();
+        Printf_TxStartNext();
     }
 }
 
