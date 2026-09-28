@@ -114,7 +114,7 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_DMA_Init();
-  MX_IWDG_Init();
+//  MX_IWDG_Init();
   MX_USART1_UART_Init();
   MX_TIM10_Init();
   MX_TIM11_Init();
@@ -141,12 +141,11 @@ HAL_UARTEx_ReceiveToIdle_DMA(&huart6, (uint8_t*)uart6_rx_buf, sizeof(uart6_rx_bu
 
 IMU_Init(&huart2);    //启动IMU模块DMA接收
 
-I2S_Beat_Init();    //启动 I2S2 DMA 循环接收
-//flag.beat_active = 1;   //节拍检测任务激活
-
 WS2812_Init();    //启动WS2812B灯带驱动
+flag.ws2812_change=1;
 
 //OpticalFlow_Init();    //初始化光流传感器
+//flag.flow_active=1;
 
 Servo_pwm_Init(90.0f);    //初始化舵机PWM
 
@@ -198,7 +197,7 @@ HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);//LED 点亮
 
 //    OpticalFlow_Data_t* flow_data = OpticalFlow_ProcessData(&flag.flow_data_update);
 //    float x=flow_data->distance_x;
-//    float y=flow_data->distance_y;
+//    float y=flow_data->distance_y;printf("x:%f,y:%f\n",x,y);
 
     Leg_Action_Process();    //腿部动作处理函数
 
@@ -214,7 +213,7 @@ HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);//LED 点亮
 		tick = HAL_GetTick();
 
 //(g_mode==DEBUG) && SEGGER_RTT_printf(0,"Tick:%d\n",HAL_GetTick());
-    HAL_IWDG_Refresh(&hiwdg);   // 喂独立看门狗，防止复位,2048ms
+//    HAL_IWDG_Refresh(&hiwdg);   // 喂独立看门狗，防止复位,2048ms
 		
   }
   /* USER CODE END 3 */

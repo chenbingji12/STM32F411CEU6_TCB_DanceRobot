@@ -42,7 +42,6 @@ extern KeyState key_state;    //按键状态变量（定义在 Task.c）
 void Key_Event(void);    //按键事件处理函数
 void I2S_Beat_Action(void);    //节拍触发任务函数
 void I2S_Beat_Task(void);    //节拍检测任务函数
-void WS2812_Change(void);    //WS2812B灯带刷新任务函数
 void Realtime_Gait(void);    //实时步态任务函数
 
 void Task_Process(void);    //任务处理函数

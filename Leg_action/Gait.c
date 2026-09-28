@@ -17,10 +17,10 @@ static LegServo right_front={{3,2,1},{0,0,0}}; // 右前腿舵机id与偏移
 static LegServo left_back={{11,10,9},{0,0,0}}; // 左后腿舵机id与偏移
 static LegServo right_back={{15,14,13},{0,0,0}}; // 右后腿舵机id与偏移
 
-static GaitParams left_front_params={0,1500,0.5f,{486,736,256},17.0f,10.0f,-9.8f,1}; // 左前腿步态参数
-static GaitParams right_front_params={0,1500,0.5f,{482,745,273},17.0f,10.0f,-9.8f,1}; // 右前腿步态参数
-static GaitParams left_back_params={0,1500,0.5f,{498,730,195},17.0f,10.0f,-9.8f,1}; // 左后腿步态参数
-static GaitParams right_back_params={0,1500,0.5f,{483,729,213},17.0f,10.0f,-9.8f,1}; // 右后腿步态参数
+static GaitParams left_front_params={0,1500,0.5f,{486,306,723},17.0f,10.0f,-1.8f,1}; // 左前腿步态参数
+static GaitParams right_front_params={0,1500,0.5f,{482,285,715},17.0f,10.0f,-1.8f,1}; // 右前腿步态参数
+static GaitParams left_back_params={0,1500,0.5f,{498,335,668},17.0f,10.0f,-1.8f,1}; // 左后腿步态参数
+static GaitParams right_back_params={0,1500,0.5f,{483,274,698},17.0f,10.0f,-1.8f,1}; // 右后腿步态参数
 
 extern volatile Flag flag; // 外部声明的标志结构体，用于控制步态算法的运行
 /**
@@ -73,7 +73,21 @@ static void Choose_Leg_Direction(Flag flag)
     }
 }
 
-static float target_w=0.0f;
+#define ANGLE_CORRECT_MAX_SAMPLES 256U // 角度误差滑动窗口的最大采样数
+#define ANGLE_CORRECT_OUTPUT_LIMIT 0.3f // 角速度校正输出限幅，单位：弧度/秒
+#define ANGLE_CORRECT_INTEGRAL_LIMIT 20.0f // 积分项限幅，单位：度*秒
+#define ANGLE_CORRECT_TASK_PERIOD 10.0f // 角度校正任务周期，单位：毫秒
+
+static float angle_error_buffer[ANGLE_CORRECT_MAX_SAMPLES];//角度误差滑动窗口
+static uint16_t angle_error_index=0;//下一个写入位置
+static uint16_t angle_error_count=0;//当前有效误差数量
+static uint16_t angle_error_window=0;//当前窗口需要的误差数量
+static float angle_error_sum=0.0f;//窗口内角度误差和
+static float angle_average=0.0f;//窗口内平均角度误差
+static float pid_error_sum=0.0f;//PID积分项
+static float pid_last_error=0.0f;//上一次误差
+static float pid_correct_w=0.0f;//上一次角速度校正值
+static uint32_t pid_last_time=0;//上一次PID计算时间
 /**
  * @brief   设定线速度v，角速度w,周期T，返回左右侧腿的步长
  * @param v 线速度，单位：米/秒
@@ -87,9 +101,7 @@ void Get_Step_Length(float v,float w,float T)
     right_back_params.period=
     T*1000.0f;
 
-    target_w=w;
-
-    w=w+speedparams.correct_w;
+    w=w-speedparams.correct_w;
 
     if(w==0.0f)//直线运动
     {
@@ -257,23 +269,25 @@ static void Gait_Phase_Calc(uint32_t period)
     LegAngles left_back_angles=Leg_Trajectory(&left_back_params);
     LegAngles right_back_angles=Leg_Trajectory(&right_back_params);
 
+    static float step_height_kp=1.7f;//步高比例系数
+
     for(uint8_t i=0;i<3;i++)
     {
         Servo_Write(left_front.id[i],
             (uint16_t)(left_front_params.original_angle[i]+
-                Radian_To_Angle(left_front_angles.q[i])+left_front.offset[i]),
+                step_height_kp*Radian_To_Angle(left_front_angles.q[i])+left_front.offset[i]),
                 25);
         Servo_Write(right_front.id[i],
             (uint16_t)(right_front_params.original_angle[i]+
-                Radian_To_Angle(right_front_angles.q[i])+right_front.offset[i]),
+                step_height_kp*Radian_To_Angle(right_front_angles.q[i])+right_front.offset[i]),
                 25);
         Servo_Write(left_back.id[i],
             (uint16_t)(left_back_params.original_angle[i]+
-                Radian_To_Angle(left_back_angles.q[i])+left_back.offset[i]),
+                step_height_kp*Radian_To_Angle(left_back_angles.q[i])+left_back.offset[i]),
                 25);
         Servo_Write(right_back.id[i],
             (uint16_t)(right_back_params.original_angle[i]+
-                Radian_To_Angle(right_back_angles.q[i])+right_back.offset[i]),
+                step_height_kp*Radian_To_Angle(right_back_angles.q[i])+right_back.offset[i]),
                 25);
     }
 }
@@ -299,43 +313,85 @@ static float Wrap_Angle(float angle)
 }
 
 /**
- * @brief   计算一个步态周期的角度偏移值
+ * @brief   清空角度纠正的滑动窗口与PID状态
+ */
+static void Angle_Correct_Reset(void)
+{
+    angle_error_index=0U;
+    angle_error_count=0U;
+    angle_error_window=0U;
+    angle_error_sum=0.0f;
+    angle_average=0.0f;
+    pid_error_sum=0.0f;
+    pid_last_error=0.0f;
+    pid_correct_w=0.0f;
+    pid_last_time=0U;
+}
+
+/**
+ * @brief   计算最近一个步态周期的滑动平均角度误差
  * @param gait_period 步态周期，单位：毫秒
  * @param target_angle 目标角度
  * @param current_angle 当前角度
- * @return float 角度偏移值
+ * @param update_flag 本次是否加入了新采样
+ * @return float 滑动平均角度误差
  */
-static float Angle_Correct(float gait_period,float target_angle,float current_angle,uint8_t* update_flag)
+static float Angle_Correct(float gait_period,float target_angle,
+    float current_angle,uint8_t* update_flag)
 {
-    static float error_sum = 0.0f;
-    static uint32_t count = 0;
-    static uint32_t start_time = 0;
-    static float angle_correct = 0.0f;
+    uint16_t window_count;
+    float error;
 
-    if(update_flag != NULL)
+    if(update_flag!=NULL)
     {
-    *update_flag = 0U;
+        *update_flag=0U;
     }
-    uint32_t current_time = HAL_GetTick();
-    if(start_time==0)
+    // 计算滑动窗口样本数
+    window_count=(uint16_t)(gait_period/ANGLE_CORRECT_TASK_PERIOD);
+    if(window_count==0U)
     {
-        start_time=current_time;
-        return 0.0f;
+        window_count=1U;
     }
-    
-    float error=Wrap_Angle(target_angle-current_angle);
-    error_sum += error;
-    count++;
-    if(current_time-start_time>=gait_period)
+    if(window_count>ANGLE_CORRECT_MAX_SAMPLES)
     {
-        angle_correct = error_sum/count;
-        error_sum = 0.0f;
-        count = 0;
-        start_time = current_time;
-        *update_flag = 1;
+        window_count=ANGLE_CORRECT_MAX_SAMPLES;
     }
- 
-    return angle_correct;
+
+    /* 步态周期改变时，重新建立新的滑动窗口。 */
+    if(angle_error_window!=window_count)
+    {
+        angle_error_index=0U;
+        angle_error_count=0U;
+        angle_error_sum=0.0f;
+        angle_average=0.0f;
+        angle_error_window=window_count;
+    }
+
+    error=Wrap_Angle(target_angle-current_angle);
+    if(angle_error_count<angle_error_window)
+    {
+        angle_error_buffer[angle_error_index]=error;
+        angle_error_sum+=error;
+        angle_error_count++;
+    }
+    else// 滑动窗口已满
+    {
+        angle_error_sum-=angle_error_buffer[angle_error_index];
+        angle_error_buffer[angle_error_index]=error;
+        angle_error_sum+=error;
+    }
+    angle_error_index=(uint16_t)((angle_error_index+1U)%angle_error_window);
+    if(angle_error_count>0U)
+    {
+        angle_average=angle_error_sum/(float)angle_error_count;
+    }
+
+    if(update_flag!=NULL)
+    {
+        *update_flag=1U;
+    }
+
+    return angle_average;
 }
 
 /**
@@ -343,39 +399,76 @@ static float Angle_Correct(float gait_period,float target_angle,float current_an
  * @param gait_period 步态周期，单位：毫秒
  * @param target_angle 目标角度
  * @param current_angle 当前角度
- * @return float 角度偏移值
+ * @return float 角速度校正值
  */
 static float Angle_Correct_PID(float gait_period,float target_angle,float current_angle)
 {
     static float kp=0.01f;
     static float ki=0.0f;
     static float kd=0.0f;
-    static float last_error = 0.0f;
-    static float error_sum = 0.0f;
-    static float error = 0.0f;
-    static float correct_w=0.0f;
-    static uint32_t last_time = 0;
+    uint8_t angle_correct_update=0U;
+    uint32_t current_time=HAL_GetTick();
+    float error;
+    float dt;
+    float derivative;//误差变化率
+    float integral_candidate;//积分候选值
+    float output;
 
-    uint32_t current_time = HAL_GetTick();
-    uint8_t angle_correct_update = 0;
-    float dt=(float)(current_time-last_time)/1000.0f;
+    error=Angle_Correct(gait_period,target_angle,current_angle,
+        &angle_correct_update);
+    if(angle_correct_update==0U)
+    {
+        return pid_correct_w;
+    }
 
-    error=Angle_Correct(gait_period,target_angle,current_angle,&angle_correct_update);
-    if(angle_correct_update==1)
+    if(pid_last_time==0U)
     {
-        if(last_time == 0 || dt <= 0.0f)
+        pid_last_time=current_time;
+        pid_last_error=error;
+        pid_correct_w=kp*error;
+        return pid_correct_w;
+    }
+
+    dt=(float)(current_time-pid_last_time)/1000.0f;
+    if(dt<=0.0f)
     {
-        last_time = current_time;
-        last_error = error;
-        return correct_w;
+        return pid_correct_w;
     }
-        error_sum += error*dt;
-        correct_w = kp*error+ki*error_sum+kd*(error-last_error)/dt;
-        last_error = error;
-        last_time = current_time;
+
+    integral_candidate=pid_error_sum+error*dt;//积分候选值
+    if(integral_candidate>ANGLE_CORRECT_INTEGRAL_LIMIT)//积分限幅
+    {
+        integral_candidate=ANGLE_CORRECT_INTEGRAL_LIMIT;
     }
-    correct_w = correct_w>0.3f?0.3f:correct_w<-0.3f?-0.3f:correct_w;
-    return correct_w;
+    else if(integral_candidate<-ANGLE_CORRECT_INTEGRAL_LIMIT)
+    {
+        integral_candidate=-ANGLE_CORRECT_INTEGRAL_LIMIT;
+    }
+
+    derivative=(error-pid_last_error)/dt;//误差变化率
+    output=kp*error+ki*integral_candidate+kd*derivative;//PID输出
+
+    /* 输出饱和且误差方向相同时，暂时不增加积分。 */
+    if(!((output>ANGLE_CORRECT_OUTPUT_LIMIT && error>0.0f) ||
+        (output<-ANGLE_CORRECT_OUTPUT_LIMIT && error<0.0f)))
+    {
+        pid_error_sum=integral_candidate;
+    }
+    output=kp*error+ki*pid_error_sum+kd*derivative;
+
+    if(output>ANGLE_CORRECT_OUTPUT_LIMIT)//输出限幅
+    {
+        output=ANGLE_CORRECT_OUTPUT_LIMIT;
+    }
+    else if(output<-ANGLE_CORRECT_OUTPUT_LIMIT)
+    {
+        output=-ANGLE_CORRECT_OUTPUT_LIMIT;
+    }
+
+    pid_last_error=error;
+    pid_last_time=current_time;
+    pid_correct_w=output;
+    return pid_correct_w;
 }
 
 /**
@@ -385,25 +478,36 @@ void Angle_Correct_Process(void)
 {
     static float target_yaw=0.0f;
     static uint32_t last_time = 0;
+    static uint32_t last_log_time = 0;
 
     IMU_Data_t *imu=IMU_GetData();
+    uint32_t current_time=HAL_GetTick();
 
     if(flag.angle_correct == 1)
     {
     target_yaw = imu->yaw;
     speedparams.correct_w = 0.0f;
+    Angle_Correct_Reset();
     flag.angle_correct = 0;
-    last_time = HAL_GetTick();
+    last_time = current_time;
     }
     else
     {
-    target_yaw=(target_w*(float)(HAL_GetTick()-last_time)/1000.0f)/PI*180.0f+target_yaw;
+    target_yaw=(speedparams.target_w*(float)(current_time-last_time)/1000.0f)/PI*180.0f+target_yaw;
+    target_yaw=Wrap_Angle(target_yaw);
     
     speedparams.correct_w=Angle_Correct_PID(left_front_params.period,target_yaw,imu->yaw);
     }
-    last_time=HAL_GetTick();
-    printf("correct_w=%f\n",speedparams.correct_w);
-    printf("imu->yaw=%f\n",imu->yaw);
+    last_time=current_time;
+
+    if(current_time-last_log_time>=100U)//100ms打印一次
+    {
+        printf("correct_w_x1000=%d yaw_x100=%d error_x100=%d\n",
+            (int)(speedparams.correct_w*1000.0f),
+            (int)(imu->yaw*100.0f),
+            (int)(angle_average*100.0f));
+        last_log_time=current_time;
+    }
 }
 
 /**

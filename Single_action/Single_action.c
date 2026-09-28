@@ -5,6 +5,9 @@
 
 #include "Single_action.h"
 
+extern GaitMode gaitmode;
+extern SpeedParams speedparams;
+
 /**
  * @brief   向舵机发送动作数据
  */
@@ -87,6 +90,17 @@ void Stop(char *param)
     {
         Servo_Stop(id);
     }
+    flag.walk_forward=0U;
+    flag.walk_backward=0U;
+    flag.move_to_left=0U;
+    flag.move_to_right=0U;
+    flag.turn_left=0U;
+    flag.turn_right=0U;
+    flag.moving=0U;
+    flag.angle_correct=0U;
+    speedparams.target_v=0.0f;
+    speedparams.target_w=0.0f;
+    speedparams.correct_w=0.0f;
     printf("Stop success\n");
 }
 
@@ -113,8 +127,6 @@ void Off_Zero_Yaw(char *param)
     printf("Off_Zero_Yaw success\n");
 }
 
-extern GaitMode gaitmode;
-extern SpeedParams speedparams;
 /**
  * @brief   游戏手柄远程遥控数据处理
  * @param  param: 参数字符串
@@ -124,10 +136,10 @@ void Gamepad_Control(char *param)
 {
     int lx,ly,rx,ry,lt,rt,btns;
     char d;
+    uint8_t current_moving;
     static uint8_t btns_flag1=0;//按钮状态标志位，用于判断是否需要读取舵机角度
     static uint8_t btns_flag2=0;//按钮状态标志位，用于判断是否需要改变摇杆比例系数
     static uint8_t change_gaitmode=0;//按钮状态标志位，用于判断是否需要改变gaitmode
-    static uint8_t last_moving = 0; // 上一帧是否处于运动状态
     static float p=0.00005f;//摇杆比例系数
     static float T=1.5f;//周期，单位：秒
     static float servo_17=500.0f;
@@ -176,8 +188,8 @@ void Gamepad_Control(char *param)
 
         if(abs(lx)>260)
         {
-          pwm_servo=pwm_servo+lx*p;
-          pwm_servo=pwm_servo>120?120:pwm_servo<90?90:pwm_servo;
+          pwm_servo=pwm_servo+lx*p*0.4f;
+          pwm_servo=pwm_servo>100?100:pwm_servo<65?65:pwm_servo;
           Servo_pwm_SetAngle(pwm_servo);
         }
       }
@@ -316,21 +328,31 @@ void Gamepad_Control(char *param)
       servo_20=servo_20>1000?1000:servo_20<0?0:servo_20;//限制舵机角度在0-1000之间
       Servo_Write(20, (uint16_t)servo_20, 0);
       }
+      }
+      current_moving =
+      (d=='U' || d=='D' || d=='L' || d=='R') ? 1U : 0U;
+
+      if((flag.moving==0U) && (current_moving==1U))
+      {
+        /* 运动状态从停止变为运动时，只触发一次角度校正 */
+        flag.angle_correct=1U;
+      }
+      else if((flag.moving==1U) && (current_moving==0U))
+      {
+        /* 手柄回到中立时，清除步态状态并保留目标速度 */
+        flag.walk_forward=0U;
+        flag.walk_backward=0U;
+        flag.move_to_left=0U;
+        flag.move_to_right=0U;
+        flag.turn_left=0U;
+        flag.turn_right=0U;
+        flag.angle_correct=0U;
+        speedparams.correct_w=0.0f;
+      }
+
+      /* 持续运动期间不重复触发角度校正 */
+      flag.moving=current_moving;
     }
-  }
-    uint8_t current_moving =
-    (flag.walk_forward || flag.walk_backward ||
-     flag.move_to_left || flag.move_to_right ||
-     flag.turn_left || flag.turn_right) ? 1U : 0U;
-
-/* 运动状态从停止变为运动时，只触发一次角度校正 */
-flag.angle_correct = (current_moving == 1U && last_moving == 0U) ? 1U : 0U;
-
-/* 持续运动期间只保持 moving，不重复触发 angle_correct */
-flag.moving = current_moving;
-
-/* 保存本次运动状态，供下一帧比较 */
-last_moving = current_moving;
 
     Get_Step_Length(speedparams.target_v,speedparams.target_w,T);
 }
@@ -386,9 +408,13 @@ void Move(char *param)
     float v,w;
     if(sscanf(param,"%f %f",&v,&w)==2)
     {
+        speedparams.target_v=v;
+        speedparams.target_w=w;
+
+        /* 开始运动时，重新设置角度校正状态。 */
+        flag.angle_correct=1;
         flag.walk_forward=1;
         flag.moving=1;
-        flag.angle_correct=1;
     }
 }
 

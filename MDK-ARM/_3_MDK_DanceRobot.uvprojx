@@ -81,7 +81,7 @@
           </BeforeMake>
           <AfterMake>
             <RunUserProg1>0</RunUserProg1>
-            <RunUserProg2>0</RunUserProg2>
+            <RunUserProg2>1</RunUserProg2>
             <UserProg1Name></UserProg1Name>
             <UserProg2Name></UserProg2Name>
             <UserProg1Dos16Mode>0</UserProg1Dos16Mode>
@@ -110,11 +110,11 @@
         </CommonProperty>
         <DllOption>
           <SimDllName>SARMCM3.DLL</SimDllName>
-          <SimDllArguments> -REMAP -MPU</SimDllArguments>
+          <SimDllArguments>-REMAP -MPU</SimDllArguments>
           <SimDlgDll>DCM.DLL</SimDlgDll>
           <SimDlgDllArguments>-pCM4</SimDlgDllArguments>
           <TargetDllName>SARMCM3.DLL</TargetDllName>
-          <TargetDllArguments> -MPU</TargetDllArguments>
+          <TargetDllArguments>-MPU</TargetDllArguments>
           <TargetDlgDll>TCM.DLL</TargetDlgDll>
           <TargetDlgDllArguments>-pCM4</TargetDlgDllArguments>
         </DllOption>
@@ -339,7 +339,7 @@
               <MiscControls></MiscControls>
               <Define>USE_HAL_DRIVER,STM32F411xE,MPU6050,EMPL</Define>
               <Undefine></Undefine>
-              <IncludePath>../Core/Inc;../DMP_MPU6050;../Drivers/STM32F4xx_HAL_Driver/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F4xx/Include;../Drivers/CMSIS/Include;../J-Link_RTT;../Single_action;../Task;../LX-16A;../IMU;../FIFO;../I2S_beat;../Leg_action;../Body_action;../Location_deal;../Optical_flow;../WS2812;../Servo_pwm;..\Drivers\CMSIS\DSP\Include</IncludePath>
+              <IncludePath>../Core/Inc;../DMP_MPU6050;../Drivers/STM32F4xx_HAL_Driver/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F4xx/Include;../Drivers/CMSIS/Include;../J-Link_RTT;../Single_action;../Task;../LX-16A;../IMU;../FIFO;../I2S_beat;../Leg_action;../Body_action;../Location_deal;../Optical_flow;../WS2812;../Servo_pwm;../Drivers/CMSIS/DSP/Include</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>

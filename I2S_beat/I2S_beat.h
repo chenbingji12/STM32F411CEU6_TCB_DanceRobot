@@ -64,5 +64,6 @@ extern BeatData beat_data; // 节拍数据结构体变量，用于存储从上�
 
 BeatData* Get_BeatData(void);
 void Update_BeatIndex(BeatData* beat_data);
+void I2S_Beat_Action(void);
 
 #endif

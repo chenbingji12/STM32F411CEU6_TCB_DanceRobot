@@ -345,3 +345,17 @@ void HAL_I2S_RxCpltCallback(I2S_HandleTypeDef *hi2s)
         ready_flag |= 0x02U;
     }
 }
+
+/**
+  * @brief  处理节拍动作任务,在task.c中当flag.beat_active为1时,11ms执行一次
+  * @retval 无
+  */
+void I2S_Beat_Action(void)
+{
+  static uint8_t last_beat = 0;   //记录上一次节拍状态
+  if(I2S_Beat_IsBeat() && !last_beat)   //检测到节拍触发瞬间
+  {
+    HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+  }
+  last_beat = I2S_Beat_IsBeat();   //更新上一次节拍状态
+}
