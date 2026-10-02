@@ -66,3 +66,36 @@ void Location_deal_ClearYawError(void)
     self_yaw = 0.0f;
     yaw_error = 0.0f;
 }
+
+extern IMU_Data_t *imu;
+/**
+ * @brief   根据IMU的加速度计算速度与位移,放在task.c中，5ms调用一次
+ * @retval  无
+ */
+void IMU_CalcSpeedAndDisplacement(void)
+{
+    static IMU_SpeedDisplacement_t imu_speed_displacement = {0.0f, 0.0f, 0.0f, 0.0f};
+    static uint32_t last_time = 0;
+    uint32_t current_time = HAL_GetTick();
+
+    float dt = (current_time - last_time) /1000.0f; // 时间间隔 (秒)
+
+    // 使用IMU的加速度计算速度和位移
+    imu_speed_displacement.velocity_x=imu->acc_x*dt+imu_speed_displacement.velocity_x;
+    imu_speed_displacement.velocity_y=imu->acc_y*dt+imu_speed_displacement.velocity_y;
+    imu_speed_displacement.displacement_x=imu_speed_displacement.velocity_x*dt
+    +imu_speed_displacement.displacement_x;
+    imu_speed_displacement.displacement_y=imu_speed_displacement.velocity_y*dt
+    +imu_speed_displacement.displacement_y;
+
+    static uint8_t count = 0;
+    count++;
+    if(count>=10)
+    {
+    printf("vx=%.2f,vy=%.2f,dx=%.2f,dy=%.2f\n",
+           imu_speed_displacement.velocity_x, imu_speed_displacement.velocity_y,
+           imu_speed_displacement.displacement_x, imu_speed_displacement.displacement_y);
+           count=0;
+    }
+    last_time = current_time;
+}
