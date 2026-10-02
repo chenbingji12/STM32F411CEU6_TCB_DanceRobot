@@ -12,10 +12,9 @@ float last_y=0.0f;//上一次光流数据的x，y坐标值
 /**
  * @brief   I2C从设备卡死处理
  */
-static void I2C1_BusRecover(void)
+void I2C1_BusRecover(void)
 {
     GPIO_InitTypeDef GPIO_InitStruct = {0};
-
     HAL_I2C_DeInit(&hi2c1);
 
     __HAL_RCC_GPIOB_CLK_ENABLE();
@@ -29,7 +28,7 @@ static void I2C1_BusRecover(void)
     HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET); // SCL high
     HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_SET); // SDA high
 
-    HAL_Delay(1);
+//    HAL_Delay(1);
 
     // 如果 SDA 被从机拉低，手动给 SCL 9 个时钟
     for (uint8_t i = 0; i < 9; i++) {
@@ -60,6 +59,7 @@ static void I2C1_BusRecover(void)
     __HAL_RCC_I2C1_RELEASE_RESET();
 
     MX_I2C1_Init();
+
 }
 
 /**
@@ -84,7 +84,6 @@ void OpticalFlow_Init(void)
         }//初始化失败，死循环，等看门狗复位重试
     }
 }
-
 /**
  * @brief   获取光流数据
  * @retval  无
@@ -150,14 +149,15 @@ OpticalFlow_Data_t* OpticalFlow_ProcessData(volatile uint8_t* flow_data_update)
     float flow_x_integral=(float)(((float)flow_x)/10000.0f*((float)distance_to_ground));
     float flow_y_integral=(float)(((float)flow_y)/10000.0f*((float)distance_to_ground));
 
-    processed_data.distance_x=flow_x_integral+last_x;//当前x位移=当前x位移+上一次x位移
-    processed_data.distance_y=flow_y_integral+last_y;
+    processed_data.distance_x=(flow_x_integral+last_x)/100.0f;//当前x位移=当前x位移+上一次x位移
+    processed_data.distance_y=(flow_y_integral+last_y)/100.0f;
 
     last_x=processed_data.distance_x;//更新上一次的x位移
     last_y=processed_data.distance_y;
 
     ////上一次发送光流数据到本次发送光流数据的累计时间，微秒
-    int16_t integration_timespan=(int16_t)(original_data->integration_timespan[0]|(original_data->integration_timespan[1]<<8));
+    int16_t integration_timespan=(int16_t)
+    (original_data->integration_timespan[0]|(original_data->integration_timespan[1]<<8));
 
     return &processed_data;
 }

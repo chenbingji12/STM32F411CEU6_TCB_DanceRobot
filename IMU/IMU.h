@@ -18,7 +18,9 @@
 /* 协议常量 ------------------------------------------------------------------*/
 #define IMU_HDR1            0x7E    /* 帧头第1字节 */
 #define IMU_HDR2            0x23    /* 帧头第2字节 */
+#define IMU_FUNC_RAW        0x04    /* 原始数据功能字 */
 #define IMU_FUNC_EULER      0x26    /* 欧拉角功能字 */
+#define IMU_RAW_FRAME_LEN   0x17    /* 原始数据帧总长度(23字节) */
 #define IMU_EULER_FRAME_LEN 0x11    /* 欧拉角帧总长度(17字节) */
 
 /* DMA接收缓冲区大小(字节) */
@@ -29,6 +31,9 @@ typedef struct {
     float roll;       /* 横滚角, 单位: 度 */
     float pitch;      /* 俯仰角, 单位: 度 */
     float yaw;        /* 偏航角, 单位: 度 */
+    float acc_x;      /* X轴加速度, 单位: m/s^2 */
+    float acc_y;      /* Y轴加速度, 单位: m/s^2 */
+    float acc_z;      /* Z轴加速度, 单位: m/s^2 */
     uint8_t updated;  /* 新数据标志: 1=有新数据, 主循环读取后清零 */
 } IMU_Data_t;
 

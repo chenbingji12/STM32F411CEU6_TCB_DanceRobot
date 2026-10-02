@@ -395,6 +395,21 @@ static float Angle_Correct(float gait_period,float target_angle,
 }
 
 /**
+ * @brief  一阶低通滤波
+ * @param input 输入值
+ * @return float 输出值
+ */
+static float Low_Pass_Filter(float input)
+{
+    float k=0.1f;//滤波系数，0-1之间
+    static float last_output=0.0f;
+    float output;
+    output=k*input+(1.0f-k)*last_output;
+    last_output=output;
+    return output;
+}
+
+/**
  * @brief   用PID调整角速度
  * @param gait_period 步态周期，单位：毫秒
  * @param target_angle 目标角度

@@ -25,6 +25,8 @@
 
 /* Private defines -----------------------------------------------------------*/
 #define IMU_RAD_TO_DEG  (57.29577951308232f)  /* 180/PI, 弧度转角度 */
+#define IMU_ACCEL_SCALE (16.0f / 32767.0f)    /* 原始加速度转换为g */
+#define IMU_G_TO_MPS2   (9.80665f)             /* g转换为m/s^2 */
 
 /* Private variables ---------------------------------------------------------*/
 static UART_HandleTypeDef *s_huart = NULL;    /* USART句柄 */
@@ -42,6 +44,7 @@ typedef enum {
 /* Private function prototypes -----------------------------------------------*/
 static void IMU_ParseBuffer(uint8_t *buf, uint16_t len);
 static uint8_t IMU_CalcChecksum(uint8_t *buf, uint16_t len);
+static void IMU_ParseRawFrame(uint8_t *frame);
 static void IMU_ParseEulerFrame(uint8_t *frame);
 
 /* Exported functions --------------------------------------------------------*/
@@ -99,6 +102,37 @@ static uint8_t IMU_CalcChecksum(uint8_t *buf, uint16_t len)
         sum += buf[i];
     }
     return (uint8_t)(sum & 0xFF);
+}
+
+/**
+  * @brief  解析原始数据帧 (功能字0x04)
+  *         加速度数据为int16_t小端序, 单位为g, 需转换为m/s^2
+  * @param  frame: 帧起始指针 (包含帧头和长度)
+  * @retval 无
+  */
+static void IMU_ParseRawFrame(uint8_t *frame)
+{
+    int16_t raw_x;
+    int16_t raw_y;
+    int16_t raw_z;
+
+    /* Accel X: frame[4..5] 小端序int16_t */
+    raw_x = (int16_t)((uint16_t)frame[4] |
+                      ((uint16_t)frame[5] << 8));
+
+    /* Accel Y: frame[6..7] 小端序int16_t */
+    raw_y = (int16_t)((uint16_t)frame[6] |
+                      ((uint16_t)frame[7] << 8));
+
+    /* Accel Z: frame[8..9] 小端序int16_t */
+    raw_z = (int16_t)((uint16_t)frame[8] |
+                      ((uint16_t)frame[9] << 8));
+
+    s_imu_data.acc_x = raw_x * IMU_ACCEL_SCALE * IMU_G_TO_MPS2;
+    s_imu_data.acc_y = raw_y * IMU_ACCEL_SCALE * IMU_G_TO_MPS2;
+    s_imu_data.acc_z = raw_z * IMU_ACCEL_SCALE * IMU_G_TO_MPS2;
+
+    s_imu_data.updated = 1;
 }
 
 /**
@@ -183,10 +217,13 @@ static void IMU_ParseBuffer(uint8_t *buf, uint16_t len)
 
         /* 步骤5: 根据功能字分发解析 */
         uint8_t func = buf[i + 3];
-        if (func == IMU_FUNC_EULER) {
+        if (func == IMU_FUNC_RAW) {
+            IMU_ParseRawFrame(&buf[i]);
+        }
+        else if (func == IMU_FUNC_EULER) {
             IMU_ParseEulerFrame(&buf[i]);
         }
-        /* 其他功能字(0x04原始数据/0x16四元数/0x32气压)暂不解析 */
+        /* 其他功能字(0x16四元数/0x32气压)暂不解析 */
 
         i += frame_len;  /* 跳到下一帧 */
     }

@@ -411,7 +411,7 @@ void WS2812_OffCmd(char *param)
 /**
  * @brief   ws2812颜色渐变,在task.c中调用，每39ms执行一次
  */
-void WS2812_Change(void)
+/*void WS2812_Change(void)
 {
     static uint8_t red = 0;
     static uint8_t green = 0;
@@ -472,4 +472,644 @@ void WS2812_Change(void)
     WS2812_Fill(WS2812_BODY, red, green, blue);
     WS2812_Fill(WS2812_SCREEN_1, green/4.0f, blue/4.0f, red/4.0f);
     WS2812_Fill(WS2812_SCREEN_2, blue/4.0f, red/4.0f, green/4.0f);
+}*/
+
+//void WS2812_Change(void)
+//{
+//    static uint8_t animation_frame = 0U;
+//    static uint8_t strip_index = 0U;
+
+//    uint8_t phase1;
+//    uint8_t phase2;
+//    uint8_t wave1;
+//    uint8_t wave2;
+//    uint8_t radius1;
+//    uint8_t radius2;
+//    uint8_t row;
+//    uint8_t col;
+//    uint8_t row_distance;
+//    uint8_t col_distance;
+//    uint8_t distance;
+//    uint8_t trail;
+//    uint8_t i;
+//    uint16_t led_index;
+
+//    /* 两块灯屏错开半个动画周期 */
+//    phase1 = animation_frame;
+//    phase2 = (uint8_t)((animation_frame + 28U) % 56U);
+
+//    /* 让波纹从中心扩散到边缘后再收回 */
+//    wave1 = (phase1 <= 28U) ? phase1 : (uint8_t)(56U - phase1);
+//    wave2 = (phase2 <= 28U) ? phase2 : (uint8_t)(56U - phase2);
+
+//    radius1 = (uint8_t)(2U + wave1);
+//    radius2 = (uint8_t)(2U + wave2);
+
+//    WS2812_Fill(WS2812_SCREEN_1, 0U, 0U, 0U);
+//    WS2812_Fill(WS2812_SCREEN_2, 0U, 0U, 0U);
+//    WS2812_Fill(WS2812_BODY, 0U, 0U, 0U);
+
+//    for(row = 0U; row < WS2812_SCREEN_HEIGHT; row++)
+//    {
+//        /* 距离屏幕中心的纵向距离，中心位于四颗灯珠之间 */
+//        row_distance = (row <= 7U) ?
+//                       (uint8_t)(15U - 2U * row) :
+//                       (uint8_t)(2U * row - 15U);
+
+//        for(col = 0U; col < WS2812_SCREEN_WIDTH; col++)
+//        {
+//            col_distance = (col <= 7U) ?
+//                           (uint8_t)(15U - 2U * col) :
+//                           (uint8_t)(2U * col - 15U);
+
+//            /* 使用曼哈顿距离，形成菱形扩散波纹 */
+//            distance = (uint8_t)(row_distance + col_distance);
+
+//            if(distance <= radius1)
+//            {
+//                trail = (uint8_t)(radius1 - distance);
+
+//                if(trail <= 2U)
+//                {
+//                    WS2812_ScreenSetPixel(
+//                        WS2812_SCREEN_1, row, col, 0U, 180U, 255U);
+//                }
+//                else if(trail <= 7U)
+//                {
+//                    WS2812_ScreenSetPixel(
+//                        WS2812_SCREEN_1, row, col, 0U, 35U, 90U);
+//                }
+//            }
+
+//            if(distance <= radius2)
+//            {
+//                trail = (uint8_t)(radius2 - distance);
+
+//                if(trail <= 2U)
+//                {
+//                    WS2812_ScreenSetPixel(
+//                        WS2812_SCREEN_2, row, col, 255U, 80U, 0U);
+//                }
+//                else if(trail <= 7U)
+//                {
+//                    WS2812_ScreenSetPixel(
+//                        WS2812_SCREEN_2, row, col, 70U, 10U, 0U);
+//                }
+//            }
+//        }
+//    }
+
+//    /* 灯带显示移动光点和渐变尾巴 */
+//    for(i = 0U; i < 4U; i++)
+//    {
+//        led_index = (uint16_t)((strip_index + WS2812_BODY_LED_COUNT - i)
+//                               % WS2812_BODY_LED_COUNT);
+
+//        if(i == 0U)
+//        {
+//            WS2812_SetLED(WS2812_BODY, led_index, 255U, 255U, 255U);
+//        }
+//        else if(i == 1U)
+//        {
+//            WS2812_SetLED(WS2812_BODY, led_index, 0U, 160U, 255U);
+//        }
+//        else if(i == 2U)
+//        {
+//            WS2812_SetLED(WS2812_BODY, led_index, 0U, 70U, 140U);
+//        }
+//        else
+//        {
+//            WS2812_SetLED(WS2812_BODY, led_index, 0U, 25U, 50U);
+//        }
+//    }
+
+//    animation_frame++;
+//    if(animation_frame >= 56U)
+//    {
+//        animation_frame = 0U;
+//    }
+
+//    strip_index++;
+//    if(strip_index >= WS2812_BODY_LED_COUNT)
+//    {
+//        strip_index = 0U;
+//    }
+//}
+
+//void WS2812_Change(void)
+//{
+//    enum
+//    {
+//        TAIL_LEN = 6U,
+//        CYCLE_LEN = 22U
+//    };
+
+//    static uint8_t frame = 0U;
+//    static uint8_t strip_index = 0U;
+
+//    static const uint8_t start1[WS2812_SCREEN_WIDTH] =
+//        {0U, 9U, 3U, 15U, 6U, 12U, 1U, 18U,
+//         7U, 14U, 4U, 20U, 10U, 2U, 17U, 5U};
+
+//    static const uint8_t speed1[WS2812_SCREEN_WIDTH] =
+//        {1U, 2U, 3U, 1U, 2U, 1U, 3U, 2U,
+//         1U, 3U, 2U, 1U, 3U, 2U, 1U, 2U};
+
+//    static const uint8_t start2[WS2812_SCREEN_WIDTH] =
+//        {13U, 2U, 18U, 6U, 21U, 8U, 15U, 3U,
+//         19U, 5U, 11U, 1U, 16U, 7U, 20U, 4U};
+
+//    static const uint8_t speed2[WS2812_SCREEN_WIDTH] =
+//        {2U, 1U, 3U, 2U, 1U, 3U, 2U, 1U,
+//         3U, 2U, 1U, 3U, 1U, 2U, 3U, 1U};
+
+//    uint8_t col;
+//    uint8_t tail;
+//    uint8_t cycle_pos;
+//    uint8_t i;
+//    int16_t head1;
+//    int16_t head2;
+//    int16_t row1;
+//    int16_t row2;
+//    uint16_t led_index;
+
+//    WS2812_Fill(WS2812_SCREEN_1, 0U, 0U, 0U);
+//    WS2812_Fill(WS2812_SCREEN_2, 0U, 0U, 0U);
+//    WS2812_Fill(WS2812_BODY, 0U, 0U, 0U);
+
+//    for(col = 0U; col < WS2812_SCREEN_WIDTH; col++)
+//    {
+//        /* 第一块屏的光点从上往下移动 */
+//        cycle_pos = (uint8_t)((frame * speed1[col] + start1[col])
+//                              % CYCLE_LEN);
+//        head1 = (int16_t)cycle_pos - TAIL_LEN;
+
+//        /* 第二块屏的光点从下往上移动 */
+//        cycle_pos = (uint8_t)((frame * speed2[col] + start2[col])
+//                              % CYCLE_LEN);
+//        head2 = (int16_t)(WS2812_SCREEN_HEIGHT - 1U) - cycle_pos;
+
+//        for(tail = 0U; tail < TAIL_LEN; tail++)
+//        {
+//            row1 = head1 - tail;
+//            row2 = head2 + tail;
+
+//            if((row1 >= 0) && (row1 < WS2812_SCREEN_HEIGHT))
+//            {
+//                if(tail == 0U)
+//                {
+//                    WS2812_ScreenSetPixel(
+//                        WS2812_SCREEN_1, (uint8_t)row1, col,
+//                        180U, 255U, 200U);
+//                }
+//                else if(tail < 3U)
+//                {
+//                    WS2812_ScreenSetPixel(
+//                        WS2812_SCREEN_1, (uint8_t)row1, col,
+//                        0U, 150U, 40U);
+//                }
+//                else
+//                {
+//                    WS2812_ScreenSetPixel(
+//                        WS2812_SCREEN_1, (uint8_t)row1, col,
+//                        0U, 45U, 12U);
+//                }
+//            }
+
+//            if((row2 >= 0) && (row2 < WS2812_SCREEN_HEIGHT))
+//            {
+//                if(tail == 0U)
+//                {
+//                    WS2812_ScreenSetPixel(
+//                        WS2812_SCREEN_2, (uint8_t)row2, col,
+//                        180U, 220U, 255U);
+//                }
+//                else if(tail < 3U)
+//                {
+//                    WS2812_ScreenSetPixel(
+//                        WS2812_SCREEN_2, (uint8_t)row2, col,
+//                        30U, 90U, 180U);
+//                }
+//                else
+//                {
+//                    WS2812_ScreenSetPixel(
+//                        WS2812_SCREEN_2, (uint8_t)row2, col,
+//                        8U, 22U, 55U);
+//                }
+//            }
+//        }
+//    }
+
+//    /* PB0灯带显示移动光点和尾迹 */
+//    for(i = 0U; i < 5U; i++)
+//    {
+//        led_index = (uint16_t)((strip_index + WS2812_BODY_LED_COUNT - i)
+//                               % WS2812_BODY_LED_COUNT);
+
+//        if(i == 0U)
+//        {
+//            WS2812_SetLED(WS2812_BODY, led_index, 255U, 255U, 255U);
+//        }
+//        else if(i < 3U)
+//        {
+//            WS2812_SetLED(WS2812_BODY, led_index, 0U, 180U, 70U);
+//        }
+//        else
+//        {
+//            WS2812_SetLED(WS2812_BODY, led_index, 0U, 45U, 18U);
+//        }
+//    }
+
+//    frame++;
+//    if(frame >= CYCLE_LEN)
+//    {
+//        frame = 0U;
+//    }
+
+//    strip_index++;
+//    if(strip_index >= WS2812_BODY_LED_COUNT)
+//    {
+//        strip_index = 0U;
+//    }
+//}
+
+//static void WS2812_SetRainbowPixel(WS2812_Device device,
+//                                   uint8_t row,
+//                                   uint8_t col,
+//                                   uint8_t hue,
+//                                   uint8_t brightness)
+//{
+//    uint8_t r;
+//    uint8_t g;
+//    uint8_t b;
+
+//    /* 将色相转换为彩虹RGB颜色 */
+//    if(hue < 85U)
+//    {
+//        r = (uint8_t)(255U - 3U * hue);
+//        g = (uint8_t)(3U * hue);
+//        b = 0U;
+//    }
+//    else if(hue < 170U)
+//    {
+//        hue = (uint8_t)(hue - 85U);
+//        r = 0U;
+//        g = (uint8_t)(255U - 3U * hue);
+//        b = (uint8_t)(3U * hue);
+//    }
+//    else
+//    {
+//        hue = (uint8_t)(hue - 170U);
+//        r = (uint8_t)(3U * hue);
+//        g = 0U;
+//        b = (uint8_t)(255U - 3U * hue);
+//    }
+
+//    /* 调整亮度 */
+//    r = (uint8_t)((uint16_t)r * brightness / 255U);
+//    g = (uint8_t)((uint16_t)g * brightness / 255U);
+//    b = (uint8_t)((uint16_t)b * brightness / 255U);
+
+//    WS2812_ScreenSetPixel(device, row, col, r, g, b);
+//}
+
+//void WS2812_Change(void)
+//{
+//    static uint8_t frame = 0U;
+
+//    uint8_t row;
+//    uint8_t col;
+//    uint8_t wave1;
+//    uint8_t wave2;
+//    uint8_t pulse1;
+//    uint8_t pulse2;
+//    uint8_t brightness;
+//    uint8_t hue1;
+//    uint8_t hue2;
+//    uint8_t hue;
+//    uint8_t i;
+
+//    WS2812_Fill(WS2812_SCREEN_1, 0U, 0U, 0U);
+//    WS2812_Fill(WS2812_SCREEN_2, 0U, 0U, 0U);
+//    WS2812_Fill(WS2812_BODY, 0U, 0U, 0U);
+
+//    for(row = 0U; row < WS2812_SCREEN_HEIGHT; row++)
+//    {
+//        for(col = 0U; col < WS2812_SCREEN_WIDTH; col++)
+//        {
+//            /* 两组斜向波相互叠加，产生流动的干涉纹理 */
+//            wave1 = (uint8_t)(row * 17U + col * 29U + frame * 7U);
+//            wave2 = (uint8_t)(row * 13U
+//                              + (WS2812_SCREEN_WIDTH - 1U - col) * 23U
+//                              + frame * 11U);
+
+//            /* 三角波只用整数运算，生成明暗起伏 */
+//            pulse1 = (wave1 < 128U) ?
+//                     (uint8_t)(wave1 * 2U) :
+//                     (uint8_t)((255U - wave1) * 2U);
+
+//            pulse2 = (wave2 < 128U) ?
+//                     (uint8_t)(wave2 * 2U) :
+//                     (uint8_t)((255U - wave2) * 2U);
+
+//            brightness = (uint8_t)(45U
+//                + ((uint16_t)(pulse1 + pulse2) * 210U / 510U));
+
+//            /* 两块灯屏使用错开的色带和波纹相位 */
+//            hue1 = (uint8_t)(row * 9U + col * 13U
+//                             + frame * 5U + pulse2 / 2U);
+//            hue2 = (uint8_t)(hue1 + 85U + frame * 2U);
+
+//            WS2812_SetRainbowPixel(
+//                WS2812_SCREEN_1, row, col, hue1, brightness);
+
+//            WS2812_SetRainbowPixel(
+//                WS2812_SCREEN_2, row, col, hue2,
+//                (uint8_t)(255U - brightness / 3U));
+//        }
+//    }
+
+//    /* PB0灯带显示滚动彩虹 */
+//    for(i = 0U; i < WS2812_BODY_LED_COUNT; i++)
+//    {
+//        hue = (uint8_t)(i * 5U + frame * 4U);
+
+//        /* 复用直线LED接口设置灯带颜色 */
+//        WS2812_SetLED(WS2812_BODY, i,
+//                      (uint8_t)(hue),
+//                      (uint8_t)(255U - hue),
+//                      (uint8_t)(hue / 2U));
+//    }
+
+//    frame++;
+//}
+
+/* 简单伪随机数，避免每帧调用 rand() */
+//static uint32_t Fire_Random(void)
+//{
+//    static uint32_t seed = 0x12345678U;
+
+//    seed ^= seed << 13;
+//    seed ^= seed >> 17;
+//    seed ^= seed << 5;
+//    return seed;
+//}
+
+///* 热量 0~255 转成黑、红、橙、黄、浅白 */
+//static void Fire_Color(uint8_t heat, uint8_t *r,
+//                       uint8_t *g, uint8_t *b)
+//{
+//    if(heat < 85U)
+//    {
+//        *r = (uint8_t)(heat * 2U);
+//        *g = 0U;
+//        *b = 0U;
+//    }
+//    else if(heat < 170U)
+//    {
+//        *r = 170U;
+//        *g = (uint8_t)((heat - 85U) * 2U);
+//        *b = 0U;
+//    }
+//    else
+//    {
+//        *r = 170U;
+//        *g = 170U;
+//        *b = (uint8_t)(heat - 170U);
+//    }
+//}
+
+//static void Fire_UpdateScreen(WS2812_Device screen, uint8_t heat[256])
+//{
+//    uint8_t row;
+//    uint8_t col;
+//    uint8_t below2;
+//    uint8_t left;
+//    uint8_t right;
+//    uint8_t cooling;
+//    uint8_t r;
+//    uint8_t g;
+//    uint8_t b;
+//    uint16_t sum;
+//    uint16_t index;
+
+//    /* 从上往下更新：读取的下一行仍是上一帧的数据 */
+//    for(row = 0U; row < 15U; row++)
+//    {
+//        below2 = (row < 14U) ? (uint8_t)(row + 2U) : 15U;
+
+//        for(col = 0U; col < 16U; col++)
+//        {
+//            left = (col > 0U) ? (uint8_t)(col - 1U) : col;
+//            right = (col < 15U) ? (uint8_t)(col + 1U) : col;
+
+//            sum = (uint16_t)heat[(row + 1U) * 16U + col] * 2U
+//                + heat[below2 * 16U + col]
+//                + heat[(row + 1U) * 16U + left]
+//                + heat[(row + 1U) * 16U + right];
+
+//            cooling = (uint8_t)(Fire_Random() % 12U);
+//            sum /= 5U;
+
+//            heat[row * 16U + col] =
+//                (sum > cooling) ? (uint8_t)(sum - cooling) : 0U;
+//        }
+//    }
+
+//    /* 最底行持续产生随机火苗，偶尔留出暗区 */
+//    for(col = 0U; col < 16U; col++)
+//    {
+//        heat[15U * 16U + col] =
+//            ((Fire_Random() & 7U) == 0U) ?
+//            45U : (uint8_t)(180U + Fire_Random() % 76U);
+//    }
+
+//    /* 将热量画到灯屏；row=0 为顶部 */
+//    for(row = 0U; row < 16U; row++)
+//    {
+//        for(col = 0U; col < 16U; col++)
+//        {
+//            index = (uint16_t)row * 16U + col;
+//            Fire_Color(heat[index], &r, &g, &b);
+//            WS2812_ScreenSetPixel(screen, row, col, r, g, b);
+//        }
+//    }
+//}
+
+//void WS2812_Change(void)
+//{
+//    static uint8_t fire1[256] = {0};
+//    static uint8_t fire2[256] = {0};
+//    uint8_t i;
+//    uint8_t ember;
+
+//    Fire_UpdateScreen(WS2812_SCREEN_1, fire1);
+//    Fire_UpdateScreen(WS2812_SCREEN_2, fire2);
+
+//    /* 灯带显示随火苗闪烁的余烬 */
+//    for(i = 0U; i < WS2812_BODY_LED_COUNT; i++)
+//    {
+//        ember = fire1[15U * 16U + (i % 16U)];
+//        WS2812_SetLED(WS2812_BODY, i,
+//                      (uint8_t)(ember / 2U),
+//                      (uint8_t)(ember / 10U),
+//                      0U);
+//    }
+//}
+
+//static void WS2812_DrawWu(WS2812_Device screen)
+//{
+//    static const uint16_t wu[16] =
+//    {
+//        0x1800,  /* ...##........... */
+//        0x1000,  /* ...#............ */
+//        0x3FFC,  /* ..############.. */
+//        0x5250,  /* .#.#..#..#.#.... */
+//        0x1250,  /* ...#..#..#.#.... */
+//        0x3FFC,  /* ..############.. */
+//        0x1250,  /* ...#..#..#.#.... */
+//        0xFFFE,  /* ###############. */
+//        0x1000,  /* ...#............ */
+//        0x1010,  /* ...#.......#.... */
+//        0x2EFC,  /* ..#.###.######.. */
+//        0x5690,  /* .#.#.##.#..#.... */
+//        0x1CFE,  /* ...###..#######. */
+//        0x0810,  /* ....#......#.... */
+//        0x7010,  /* .###.......#.... */
+//        0x4010   /* .#.........#.... */
+//    };
+
+//    uint8_t row;
+//    uint8_t col;
+
+//    WS2812_Fill(screen, 0U, 0U, 0U);
+
+//    for(row = 0U; row < 16U; row++)
+//    {
+//        for(col = 0U; col < 16U; col++)
+//        {
+//            if((wu[row] & (0x8000U >> col)) != 0U)
+//            {
+//                WS2812_ScreenSetPixel(screen, row, col,
+//                                      20U, 0U, 50U);
+//            }
+//        }
+//    }
+//}
+
+//void WS2812_Change(void)
+//{
+//    static uint8_t drawn = 0U;
+
+//    if(drawn == 0U)
+//    {
+//        WS2812_DrawWu(WS2812_SCREEN_1);
+//        WS2812_DrawWu(WS2812_SCREEN_2);
+//        drawn = 1U;
+//    }
+//}
+
+/* 绘制一行花瓣，超出灯屏的部分自动忽略 */
+static void Lotus_DrawRow(WS2812_Device screen, uint8_t row,
+                          int16_t left, int16_t right,
+                          uint8_t r, uint8_t g, uint8_t b)
+{
+    int16_t col;
+
+    for(col = left; col <= right; col++)
+    {
+        if((col >= 0) && (col < 16))
+        {
+            WS2812_ScreenSetPixel(screen, row, (uint8_t)col, r, g, b);
+        }
+    }
+}
+
+/* open为花瓣开度：0是花苞，6是盛开 */
+static void Lotus_Draw(WS2812_Device screen, uint8_t open)
+{
+    static const uint8_t center_left[8]  = {7, 7, 6, 6, 6, 6, 7, 7};
+    static const uint8_t center_right[8] = {8, 8, 9, 9, 9, 9, 8, 8};
+    uint8_t row;
+    int16_t offset;
+    int16_t width;
+
+    WS2812_Fill(screen, 0U, 0U, 0U);
+
+    /* 外层花瓣：上端向两侧展开，下端始终连接花托 */
+    for(row = 4U; row <= 11U; row++)
+    {
+        offset = (int16_t)(open * (11U - row) / 7U);
+        width = ((row == 4U) || (row == 11U)) ? 0 : 1;
+
+        Lotus_DrawRow(screen, row, 7 - offset - width,
+                      7 - offset + width, 115U, 12U, 48U);
+        Lotus_DrawRow(screen, row, 8 + offset - width,
+                      8 + offset + width, 115U, 12U, 48U);
+    }
+
+    /* 内层花瓣比外层展开得少，形成前后层次 */
+    for(row = 5U; row <= 10U; row++)
+    {
+        offset = (int16_t)(open * (11U - row) / 12U);
+        width = (row == 5U) ? 0 : 1;
+
+        Lotus_DrawRow(screen, row, 7 - offset - width,
+                      7 - offset + width, 205U, 48U, 92U);
+        Lotus_DrawRow(screen, row, 8 + offset - width,
+                      8 + offset + width, 205U, 48U, 92U);
+    }
+
+    /* 中央花瓣 */
+    for(row = 3U; row <= 10U; row++)
+    {
+        Lotus_DrawRow(screen, row,
+                      center_left[row - 3U], center_right[row - 3U],
+                      235U, 105U, 130U);
+    }
+
+    /* 盛开时露出花心 */
+    if(open >= 3U)
+    {
+        Lotus_DrawRow(screen, 9U, 7, 8, 240U, 170U, 35U);
+    }
+
+    /* 花托和花茎 */
+    Lotus_DrawRow(screen, 11U, 4, 7, 15U, 100U, 35U);
+    Lotus_DrawRow(screen, 11U, 8, 11, 15U, 100U, 35U);
+    Lotus_DrawRow(screen, 12U, 5, 10, 8U, 75U, 24U);
+    Lotus_DrawRow(screen, 13U, 7, 8, 8U, 70U, 20U);
+    Lotus_DrawRow(screen, 14U, 7, 8, 8U, 70U, 20U);
+    Lotus_DrawRow(screen, 15U, 7, 8, 8U, 70U, 20U);
+}
+
+/**
+ * @brief 莲花开合动画，由任务表每39ms调用一次
+ */
+void WS2812_Change(void)
+{
+    static uint8_t frame = 0U;
+    uint8_t open;
+
+    if(frame <= 48U)
+    {
+        open = (uint8_t)(frame * 6U / 48U); /* 约1.9秒展开 */
+    }
+    else if(frame <= 64U)
+    {
+        open = 6U;                          /* 约0.6秒保持盛开 */
+    }
+    else
+    {
+        open = (uint8_t)((113U - frame) * 6U / 48U);
+    }                                       /* 约1.9秒收拢 */
+
+    Lotus_Draw(WS2812_SCREEN_1, open);
+    Lotus_Draw(WS2812_SCREEN_2, open);
+
+    frame++;
+    if(frame >= 114U)
+    {
+        frame = 0U;
+    }
 }

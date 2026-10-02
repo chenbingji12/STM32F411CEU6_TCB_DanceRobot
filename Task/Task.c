@@ -34,6 +34,11 @@ uint32_t realtime_gait_interval_ms = 25;   //实时步态任务周期，25ms
 uint32_t angle_correct_interval_ms = 10;   //角度校正任务周期，10ms
 
 /**
+  * @brief  IMU速度与位移计算任务周期与激活状态
+  */
+uint32_t IMU_CalcSpeedAndDisplacement_interval_ms = 5;   //IMU速度与位移计算任务周期，5ms
+
+/**
   * @brief  表驱动的时间触发合作式调度器
   */
 TaskDef task_table[] = {
@@ -41,6 +46,7 @@ TaskDef task_table[] = {
     {WS2812_Change,&ws2812_change_interval_ms,0,(uint8_t*)&flag.ws2812_change},
     {Angle_Correct_Process,&angle_correct_interval_ms,0,(uint8_t*)&flag.moving},
     {Realtime_Gait,&realtime_gait_interval_ms,0,(uint8_t*)&flag.moving},
+    {IMU_CalcSpeedAndDisplacement,&IMU_CalcSpeedAndDisplacement_interval_ms,0,(uint8_t*)&flag.imu_speed_displacement_active},
 };
 
 const uint8_t task_count=sizeof(task_table) / sizeof(task_table[0]);// 任务表中任务的数量

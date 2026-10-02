@@ -140,7 +140,7 @@ void Gamepad_Control(char *param)
     static uint8_t btns_flag1=0;//按钮状态标志位，用于判断是否需要读取舵机角度
     static uint8_t btns_flag2=0;//按钮状态标志位，用于判断是否需要改变摇杆比例系数
     static uint8_t change_gaitmode=0;//按钮状态标志位，用于判断是否需要改变gaitmode
-    static float p=0.00005f;//摇杆比例系数
+    static float p=0.0002f;//摇杆比例系数
     static float T=1.5f;//周期，单位：秒
     static float servo_17=500.0f;
     static float servo_18=500.0f;
@@ -189,7 +189,7 @@ void Gamepad_Control(char *param)
         if(abs(lx)>260)
         {
           pwm_servo=pwm_servo+lx*p*0.4f;
-          pwm_servo=pwm_servo>100?100:pwm_servo<65?65:pwm_servo;
+          pwm_servo=pwm_servo>100?100:pwm_servo<60?60:pwm_servo;
           Servo_pwm_SetAngle(pwm_servo);
         }
       }
@@ -464,9 +464,7 @@ void Single_Action(char *name) // 根据传入的动作名称字符串，在动�
           return;
         }
       }
-    } else if (action[i].is_circular == 1) // 如果是循环动作
-    {
-    }
+    } 
   }
   printf("unknown single action:%s\n", name);
 }

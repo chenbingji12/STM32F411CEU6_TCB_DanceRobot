@@ -33,6 +33,8 @@ typedef struct {
     float distance_y;    //Y方向位移，单位厘米
 } OpticalFlow_Data_t;
 
+void I2C1_BusRecover(void);
+
 void OpticalFlow_Init(void);
 
 OpticalFlow_Data_t* OpticalFlow_ProcessData(volatile uint8_t* flow_data_update);

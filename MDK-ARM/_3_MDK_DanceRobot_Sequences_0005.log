@@ -1,0 +1,113 @@
+/*
+ *  CMSIS Pack Debug Access Sequence Log
+ *  File        : d:\Desktop\CUBEMX_DE_WENJIAN\_3_MDK_DanceRobot\MDK-ARM\_3_MDK_DanceRobot_Sequences_0005.log
+ *  Created     : 17:21:36 (02/10/2026)
+ *  Device      : STM32F411CEUx
+ *  PDSC File   : D:\MDK535\ARM\PACK\Keil\STM32F4xx_DFP\2.13.0\Keil.STM32F4xx_DFP.pdsc
+ *  Config File : d:\Desktop\CUBEMX_DE_WENJIAN\_3_MDK_DanceRobot\MDK-ARM\DebugConfig\_3_MDK_DanceRobot_STM32F411CEUx.dbgconf
+ *
+ */
+
+[17:21:36.809]  **********  Sequence "DebugDeviceUnlock"  (Context="Connect", Pname="", info="")
+[17:21:36.809]  
+[17:21:36.811]  <debugvars>
+[17:21:36.811]    // Pre-defined
+[17:21:36.815]    __protocol=0x00010002      (Protocol="SWD", SWJ-DP="True")
+[17:21:36.815]    __connection=0x00000202    (Connection Type="Flash", Reset Type="System Reset")
+[17:21:36.815]    __dp=0x00000000
+[17:21:36.815]    __ap=0x00000000
+[17:21:36.815]    __traceout=0x00000000      (Trace Disabled)
+[17:21:36.817]    __errorcontrol=0x00000000  (Skip Errors="False")
+[17:21:36.817]    __FlashAddr=0x00000000
+[17:21:36.817]    __FlashLen=0x00000000
+[17:21:36.817]    __FlashArg=0x00000000
+[17:21:36.817]    __FlashOp=0x00000000
+[17:21:36.817]    __Result=0x00000000
+[17:21:36.817]    
+[17:21:36.817]    // User-defined
+[17:21:36.817]    DbgMCU_CR=0x00000007
+[17:21:36.817]    DbgMCU_APB1_Fz=0x00000000
+[17:21:36.817]    DbgMCU_APB2_Fz=0x00000000
+[17:21:36.817]    TraceClk_Pin=0x00040002
+[17:21:36.817]    TraceD0_Pin=0x00040003
+[17:21:36.817]    TraceD1_Pin=0x00040004
+[17:21:36.817]    TraceD2_Pin=0x00040005
+[17:21:36.817]    TraceD3_Pin=0x00040006
+[17:21:36.817]  </debugvars>
+[17:21:36.817]  
+[17:21:36.819]  <sequence name="DebugDeviceUnlock" Pname="" disable="false" info="">
+[17:21:36.819]    <block atomic="false" info="">
+[17:21:36.819]      Sequence("CheckID");
+[17:21:36.819]        <sequence name="CheckID" Pname="" disable="false" info="">
+[17:21:36.819]          <block atomic="false" info="">
+[17:21:36.819]            __var pidr1 = 0;
+[17:21:36.819]              // -> [pidr1 <= 0x00000000]
+[17:21:36.819]            __var pidr2 = 0;
+[17:21:36.819]              // -> [pidr2 <= 0x00000000]
+[17:21:36.819]            __var jep106id = 0;
+[17:21:36.819]              // -> [jep106id <= 0x00000000]
+[17:21:36.821]            __var ROMTableBase = 0;
+[17:21:36.821]              // -> [ROMTableBase <= 0x00000000]
+[17:21:36.821]            __ap = 0;      // AHB-AP
+[17:21:36.821]              // -> [__ap <= 0x00000000]
+[17:21:36.822]            ROMTableBase = ReadAP(0xF8) & ~0x3;
+[17:21:36.826]              // -> [ReadAP(0x000000F8) => 0xE00FF003]   (__dp=0x00000000, __ap=0x00000000)
+[17:21:36.826]              // -> [ROMTableBase <= 0xE00FF000]
+[17:21:36.826]            pidr1 = Read32(ROMTableBase + 0x0FE4);
+[17:21:36.836]              // -> [Read32(0xE00FFFE4) => 0x00000004]   (__dp=0x00000000, __ap=0x00000000)
+[17:21:36.836]              // -> [pidr1 <= 0x00000004]
+[17:21:36.836]            pidr2 = Read32(ROMTableBase + 0x0FE8);
+[17:21:36.842]              // -> [Read32(0xE00FFFE8) => 0x0000000A]   (__dp=0x00000000, __ap=0x00000000)
+[17:21:36.843]              // -> [pidr2 <= 0x0000000A]
+[17:21:36.843]            jep106id = ((pidr2 & 0x7) << 4 ) | ((pidr1 >> 4) & 0xF);
+[17:21:36.843]              // -> [jep106id <= 0x00000020]
+[17:21:36.843]          </block>
+[17:21:36.843]          <control if="jep106id != 0x20" while="" timeout="0" info="">
+[17:21:36.843]            // if-block "jep106id != 0x20"
+[17:21:36.843]              // =>  FALSE
+[17:21:36.843]            // skip if-block "jep106id != 0x20"
+[17:21:36.843]          </control>
+[17:21:36.843]        </sequence>
+[17:21:36.843]    </block>
+[17:21:36.843]  </sequence>
+[17:21:36.843]  
+[17:21:37.000]  **********  Sequence "DebugCoreStart"  (Context="Target Access", Pname="", info="")
+[17:21:37.000]  
+[17:21:37.002]  <debugvars>
+[17:21:37.002]    // Pre-defined
+[17:21:37.002]    __protocol=0x00010002      (Protocol="SWD", SWJ-DP="True")
+[17:21:37.002]    __connection=0x00000202    (Connection Type="Flash", Reset Type="System Reset")
+[17:21:37.002]    __dp=0x00000000
+[17:21:37.002]    __ap=0x00000000
+[17:21:37.002]    __traceout=0x00000000      (Trace Disabled)
+[17:21:37.002]    __errorcontrol=0x00000000  (Skip Errors="False")
+[17:21:37.003]    __FlashAddr=0x00000000
+[17:21:37.003]    __FlashLen=0x00000000
+[17:21:37.003]    __FlashArg=0x00000000
+[17:21:37.003]    __FlashOp=0x00000000
+[17:21:37.003]    __Result=0x00000000
+[17:21:37.003]    
+[17:21:37.003]    // User-defined
+[17:21:37.003]    DbgMCU_CR=0x00000007
+[17:21:37.004]    DbgMCU_APB1_Fz=0x00000000
+[17:21:37.004]    DbgMCU_APB2_Fz=0x00000000
+[17:21:37.004]    TraceClk_Pin=0x00040002
+[17:21:37.004]    TraceD0_Pin=0x00040003
+[17:21:37.004]    TraceD1_Pin=0x00040004
+[17:21:37.004]    TraceD2_Pin=0x00040005
+[17:21:37.004]    TraceD3_Pin=0x00040006
+[17:21:37.004]  </debugvars>
+[17:21:37.004]  
+[17:21:37.004]  <sequence name="DebugCoreStart" Pname="" disable="false" info="">
+[17:21:37.004]    <block atomic="false" info="">
+[17:21:37.005]      Write32(0xE000EDF0, 0xA05F0001);                                        // Enable Core Debug via DHCSR
+[17:21:37.010]        // -> [Write32(0xE000EDF0, 0xA05F0001)]   (__dp=0x00000000, __ap=0x00000000)
+[17:21:37.010]      Write32(0xE0042004, DbgMCU_CR);                                         // DBGMCU_CR: Configure MCU Debug
+[17:21:37.016]        // -> [Write32(0xE0042004, 0x00000007)]   (__dp=0x00000000, __ap=0x00000000)
+[17:21:37.016]      Write32(0xE0042008, DbgMCU_APB1_Fz);                                    // DBGMCU_APB1_FZ: Configure APB1 Peripheral Freeze Behavior
+[17:21:37.021]        // -> [Write32(0xE0042008, 0x00000000)]   (__dp=0x00000000, __ap=0x00000000)
+[17:21:37.021]      Write32(0xE004200C, DbgMCU_APB2_Fz);                                    // DBGMCU_APB1_FZ: Configure APB2 Peripheral Freeze Behavior
+[17:21:37.030]        // -> [Write32(0xE004200C, 0x00000000)]   (__dp=0x00000000, __ap=0x00000000)
+[17:21:37.030]    </block>
+[17:21:37.030]  </sequence>
+[17:21:37.030]  

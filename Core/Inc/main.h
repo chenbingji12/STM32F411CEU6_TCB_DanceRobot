@@ -87,7 +87,9 @@ typedef struct {
     uint8_t angle_correct;     //角度校正任务激活标志
     uint8_t flow_active;        //光流任务激活标志
     uint8_t flow_data_update;   //光流数据更新标志
-} Flag;
+    uint8_t flow_i2c_recover;    //光流I2C总线恢复标志
+    uint8_t imu_speed_displacement_active;    //IMU速度与位移计算任务激活标志
+   } Flag;
 extern volatile Flag flag;    //动作执行状态标志变量
 
 /* USER CODE END ET */

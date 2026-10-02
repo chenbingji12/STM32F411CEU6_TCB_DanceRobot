@@ -114,7 +114,7 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_DMA_Init();
-//  MX_IWDG_Init();
+  MX_IWDG_Init();
   MX_USART1_UART_Init();
   MX_TIM10_Init();
   MX_TIM11_Init();
@@ -140,12 +140,12 @@ HAL_UARTEx_ReceiveToIdle_DMA(&huart1,(uint8_t*) uart1_rx_buf, sizeof(uart1_rx_bu
 HAL_UARTEx_ReceiveToIdle_DMA(&huart6, (uint8_t*)uart6_rx_buf, sizeof(uart6_rx_buf));   //开启 USART6 的 DMA 接收，接收数据存入 uart6_rx_buf
 
 IMU_Init(&huart2);    //启动IMU模块DMA接收
+flag.imu_speed_displacement_active=1;    //IMU速度与位移计算任务激活标志
 
 WS2812_Init();    //启动WS2812B灯带驱动
 flag.ws2812_change=1;
 
 //OpticalFlow_Init();    //初始化光流传感器
-//flag.flow_active=1;
 
 Servo_pwm_Init(90.0f);    //初始化舵机PWM
 
@@ -163,13 +163,13 @@ HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);//LED 点亮
 
     /* USER CODE BEGIN 3 */
 
-    if(battery_voltage < 6.45f)   //电池电压低于6.7V，提示用户更换电池
+    if(battery_voltage < 6.25f)   //电池电压低于6.7V，提示用户更换电池
     {
 //      (g_mode==DEBUG) && SEGGER_RTT_printf(0,"[Warning] Battery voltage is low: %.2fV, please replace the battery!\n", battery_voltage);
 //      (g_mode==DEBUG) && printf("[Warning] Battery voltage is low: %.2fV, please replace the battery!\n", battery_voltage);
       HAL_GPIO_WritePin(BEEP_GPIO_Port, BEEP_Pin, GPIO_PIN_SET);   //蜂鸣器响
     }
-    else if(battery_voltage >= 6.55f)   //电池电压恢复正常，蜂鸣器不响,迟滞区间0.1V，避免频繁响起
+    else if(battery_voltage >= 6.35f)   //电池电压恢复正常，蜂鸣器不响,迟滞区间0.1V，避免频繁响起
     {
       HAL_GPIO_WritePin(BEEP_GPIO_Port, BEEP_Pin, GPIO_PIN_RESET);   //蜂鸣器不响
     }
@@ -197,13 +197,15 @@ HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);//LED 点亮
 
 //    OpticalFlow_Data_t* flow_data = OpticalFlow_ProcessData(&flag.flow_data_update);
 //    float x=flow_data->distance_x;
-//    float y=flow_data->distance_y;printf("x:%f,y:%f\n",x,y);
+//    float y=flow_data->distance_y;printf("x=%f,y=%f\n",x,y);
 
     Leg_Action_Process();    //腿部动作处理函数
 
     Arm_Action_Process();    //机械臂动作处理函数
 
     Task_Process();    //任务处理函数
+
+    imu = IMU_GetData();    //获取当前IMU数据
 
     Location_deal_GetIMUData(imu);    //获取当前IMU数据
 
@@ -213,7 +215,7 @@ HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);//LED 点亮
 		tick = HAL_GetTick();
 
 //(g_mode==DEBUG) && SEGGER_RTT_printf(0,"Tick:%d\n",HAL_GetTick());
-//    HAL_IWDG_Refresh(&hiwdg);   // 喂独立看门狗，防止复位,2048ms
+    HAL_IWDG_Refresh(&hiwdg);   // 喂独立看门狗，防止复位,2048ms
 		
   }
   /* USER CODE END 3 */
