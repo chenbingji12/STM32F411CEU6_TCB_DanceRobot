@@ -346,8 +346,12 @@ static float Angle_Correct(float gait_period,float target_angle,
     {
         *update_flag=0U;
     }
-    // 计算滑动窗口样本数
+    // 计算滑动窗口样本数，向上取整，保证窗口时间不小于步态周期
     window_count=(uint16_t)(gait_period/ANGLE_CORRECT_TASK_PERIOD);
+    if((float)window_count*ANGLE_CORRECT_TASK_PERIOD<gait_period)
+    {
+        window_count++;
+    }
     if(window_count==0U)
     {
         window_count=1U;
@@ -386,6 +390,12 @@ static float Angle_Correct(float gait_period,float target_angle,
         angle_average=angle_error_sum/(float)angle_error_count;
     }
 
+    /* 滑动窗口未填满一个完整步态周期时，不更新PID输出。 */
+    if(angle_error_count<angle_error_window)
+    {
+        return angle_average;
+    }
+
     if(update_flag!=NULL)
     {
         *update_flag=1U;
@@ -418,9 +428,9 @@ static float Low_Pass_Filter(float input)
  */
 static float Angle_Correct_PID(float gait_period,float target_angle,float current_angle)
 {
-    static float kp=0.01f;
+    static float kp=0.1f;
     static float ki=0.0f;
-    static float kd=0.0f;
+    static float kd=0.002f;
     uint8_t angle_correct_update=0U;
     uint32_t current_time=HAL_GetTick();
     float error;
@@ -441,6 +451,8 @@ static float Angle_Correct_PID(float gait_period,float target_angle,float curren
         pid_last_time=current_time;
         pid_last_error=error;
         pid_correct_w=kp*error;
+        pid_correct_w=(pid_correct_w>ANGLE_CORRECT_OUTPUT_LIMIT)?ANGLE_CORRECT_OUTPUT_LIMIT:pid_correct_w;
+        pid_correct_w=(pid_correct_w<-ANGLE_CORRECT_OUTPUT_LIMIT)?-ANGLE_CORRECT_OUTPUT_LIMIT:pid_correct_w;
         return pid_correct_w;
     }
 
@@ -497,6 +509,8 @@ void Angle_Correct_Process(void)
 
     IMU_Data_t *imu=IMU_GetData();
     uint32_t current_time=HAL_GetTick();
+
+    if(flag.Turn_Left_Or_Right==1U){ speedparams.correct_w=0.0f; return; }
 
     if(flag.angle_correct == 1)
     {

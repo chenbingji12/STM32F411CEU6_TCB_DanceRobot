@@ -39,6 +39,11 @@ uint32_t angle_correct_interval_ms = 10;   //角度校正任务周期，10ms
 uint32_t IMU_CalcSpeedAndDisplacement_interval_ms = 5;   //IMU速度与位移计算任务周期，5ms
 
 /**
+  * @brief  原地旋转
+ */
+uint32_t Turn_Left_Or_Right_interval_ms = 10;   //原地旋转任务周期，10ms
+
+/**
   * @brief  表驱动的时间触发合作式调度器
   */
 TaskDef task_table[] = {
@@ -47,6 +52,7 @@ TaskDef task_table[] = {
     {Angle_Correct_Process,&angle_correct_interval_ms,0,(uint8_t*)&flag.moving},
     {Realtime_Gait,&realtime_gait_interval_ms,0,(uint8_t*)&flag.moving},
     {IMU_CalcSpeedAndDisplacement,&IMU_CalcSpeedAndDisplacement_interval_ms,0,(uint8_t*)&flag.imu_speed_displacement_active},
+    {Turn_Left_Or_Right_Task,&Turn_Left_Or_Right_interval_ms,0,(uint8_t*)&flag.Turn_Left_Or_Right},
 };
 
 const uint8_t task_count=sizeof(task_table) / sizeof(task_table[0]);// 任务表中任务的数量

@@ -132,6 +132,8 @@ static void IMU_ParseRawFrame(uint8_t *frame)
     s_imu_data.acc_y = raw_y * IMU_ACCEL_SCALE * IMU_G_TO_MPS2;
     s_imu_data.acc_z = raw_z * IMU_ACCEL_SCALE * IMU_G_TO_MPS2;
 
+    s_imu_data.acc_updated = 1;
+    s_imu_data.acc_update_tick = HAL_GetTick();
     s_imu_data.updated = 1;
 }
 
@@ -169,6 +171,7 @@ static void IMU_ParseEulerFrame(uint8_t *frame)
     conv.b[3] = frame[15];
     s_imu_data.yaw = conv.f * IMU_RAD_TO_DEG;
 
+    s_imu_data.attitude_updated = 1;
     s_imu_data.updated = 1;
 }
 

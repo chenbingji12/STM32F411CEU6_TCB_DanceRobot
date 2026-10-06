@@ -61,6 +61,8 @@ volatile uint32_t tick = 0;    //时间截，单位毫秒
 
 volatile uint8_t uart1_rx_buf[UART1_RX_SIZE];   // USART1 接收缓冲区，64 字节
 volatile uint8_t uart6_rx_buf[UART6_RX_SIZE];   // USART6 接收缓冲区，100 字节
+static volatile uint8_t uart6_rx_recover = 0U;   // USART6 接收DMA恢复标志
+static volatile uint32_t uart6_last_error = 0U;  // USART6 最近一次HAL错误码
 
 uint8_t pos_read_id=1;    //位置读取 ID，初始为 1，范围 1-19
 
@@ -114,7 +116,7 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_DMA_Init();
-  MX_IWDG_Init();
+//  MX_IWDG_Init();
   MX_USART1_UART_Init();
   MX_TIM10_Init();
   MX_TIM11_Init();
@@ -167,21 +169,37 @@ HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);//LED 点亮
     {
 //      (g_mode==DEBUG) && SEGGER_RTT_printf(0,"[Warning] Battery voltage is low: %.2fV, please replace the battery!\n", battery_voltage);
 //      (g_mode==DEBUG) && printf("[Warning] Battery voltage is low: %.2fV, please replace the battery!\n", battery_voltage);
-      HAL_GPIO_WritePin(BEEP_GPIO_Port, BEEP_Pin, GPIO_PIN_SET);   //蜂鸣器响
+//      HAL_GPIO_WritePin(BEEP_GPIO_Port, BEEP_Pin, GPIO_PIN_SET);   //蜂鸣器响
     }
     else if(battery_voltage >= 6.35f)   //电池电压恢复正常，蜂鸣器不响,迟滞区间0.1V，避免频繁响起
     {
       HAL_GPIO_WritePin(BEEP_GPIO_Port, BEEP_Pin, GPIO_PIN_RESET);   //蜂鸣器不响
     }
 
+    if(uart6_rx_recover == 1U)//USART6接收错误后恢复DMA
+    {
+      if(huart6.RxState == HAL_UART_STATE_READY)
+      {
+        flag.uart6_rx_ready = 0;    //丢弃错误或不完整的数据帧
+        memset((char*)uart6_rx_buf, 0, UART6_RX_SIZE);
+
+        if(HAL_UARTEx_ReceiveToIdle_DMA(&huart6, (uint8_t*)uart6_rx_buf, sizeof(uart6_rx_buf)) == HAL_OK)
+        {
+          uart6_rx_recover = 0U;    //DMA重新开启成功
+        }
+      }
+    }
+
     if(flag.uart6_rx_ready == 1)//来自上位机的指令
     {
       Single_Action((char*)uart6_rx_buf);   //调用动作函数
-      (g_mode==DEBUG) && SEGGER_RTT_printf(0,"[DMA] USART6 received, executing action: %s\n", uart6_rx_buf);
-//      (g_mode==DEBUG) && printf("uart6_rx_buf: %s\n", uart6_rx_buf);
+      (g_mode==DEBUG) && printf("uart6_rx_buf: %s\n", uart6_rx_buf);
       memset((char*)uart6_rx_buf, 0, UART6_RX_SIZE);   //清空传入的动作名称字符串，避免重复执行同一动作
       flag.uart6_rx_ready = 0;    //动作执行完成后，将标志位设为未执行状态
-      HAL_UARTEx_ReceiveToIdle_DMA(&huart6, (uint8_t*)uart6_rx_buf, sizeof(uart6_rx_buf));  //重新开启DMA接收
+      if(HAL_UARTEx_ReceiveToIdle_DMA(&huart6, (uint8_t*)uart6_rx_buf, sizeof(uart6_rx_buf)) != HAL_OK)
+      {
+        uart6_rx_recover = 1U;    //DMA重新开启失败，等待主循环恢复
+      }
     }
 
     if(flag.uart1_rx_ready == 1)//来自舵机的指令
@@ -363,6 +381,8 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
 {
     if (huart->Instance == USART6)
     {
+        uart6_last_error = HAL_UART_GetError(huart);    //保存错误码，便于调试
+        uart6_rx_recover = 1U;    //请求主循环恢复USART6接收DMA
         Printf_TxAbortCurrent();
         Printf_TxStartNext();
     }

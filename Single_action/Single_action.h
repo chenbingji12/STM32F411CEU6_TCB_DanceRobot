@@ -31,13 +31,15 @@ extern const uint8_t Reset_Whole_Count;
 void ReadAllPos(char *param);
 void Set_Servo_Pos(char *param);
 void Read_Servo_Pos(char *param);
-void Stop(char *param);
+void StopAll(char *param);
 
 void Set_pwm_Servo_TargetAngle(char *param);
 
 /*********************上位机控制IMU软件归零指令****************/
 void Zero_Yaw(char *param);
 void Off_Zero_Yaw(char *param);
+void IMU_Calibrate(char *param);
+void IMU_Reset(char *param);
 
 /*******************上位机直接设置整体动作****************/
 void Reset_Whole(char *param);

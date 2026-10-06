@@ -84,7 +84,7 @@ void Reset_Whole(char *param)
 /**
  * @brief   停止所有舵机动作
  */
-void Stop(char *param)
+void StopAll(char *param)
 {
     for(uint8_t id=1;id<=19;id++)
     {
@@ -101,7 +101,8 @@ void Stop(char *param)
     speedparams.target_v=0.0f;
     speedparams.target_w=0.0f;
     speedparams.correct_w=0.0f;
-    printf("Stop success\n");
+    flag.Turn_Left_Or_Right=0U;
+    printf("StopAll success\n");
 }
 
 extern IMU_Data_t *imu;
@@ -128,8 +129,28 @@ void Off_Zero_Yaw(char *param)
 }
 
 /**
- * @brief   游戏手柄远程遥控数据处理
- * @param  param: 参数字符串
+  * @brief   开始IMU静止校准
+  * @retval  无
+  */
+void IMU_Calibrate(char *param)
+{
+    IMU_SpeedDisplacement_StartCalibration();
+    printf("IMU calibration start, keep robot still\n");
+}
+
+/**
+  * @brief   清空IMU速度与位移
+  * @retval  无
+  */
+void IMU_Reset(char *param)
+{
+    IMU_SpeedDisplacement_Reset();
+    printf("IMU reset success\n");
+}
+
+/**
+  * @brief   游戏手柄远程遥控数据处理
+  * @param  param: 参数字符串
  * @retval  无
  */
 void Gamepad_Control(char *param)
@@ -393,7 +414,7 @@ void Receive_Bmp(char *param)
             beat_data.beat_count=500;
           }
         }
-        (g_mode==DEBUG) && SEGGER_RTT_printf(0,"[Receive_Bmp] %d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
+        (g_mode==DEBUG) && printf("[Receive_Bmp] %d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
           bmp[0],bmp[1],bmp[2],bmp[3],bmp[4],bmp[5],bmp[6],bmp[7],bmp[8],bmp[9]);
       }
     }
@@ -405,8 +426,8 @@ void Receive_Bmp(char *param)
  */
 void Move(char *param)
 {
-    float v,w;
-    if(sscanf(param,"%f %f",&v,&w)==2)
+    float v,w,T;
+    if(sscanf(param,"%f %f %f",&v,&w,&T)==3)
     {
         speedparams.target_v=v;
         speedparams.target_w=w;
@@ -415,7 +436,98 @@ void Move(char *param)
         flag.angle_correct=1;
         flag.walk_forward=1;
         flag.moving=1;
+        Get_Step_Length(speedparams.target_v,speedparams.target_w,T);
     }
+    printf("Move success:v=%f,w=%f,T=%f\n",v,w,T);
+}
+
+/**
+ * @brief   停止移动
+  */
+static void StopMove(char *param)
+{
+    speedparams.target_v=0.0f;
+    speedparams.target_w=0.0f;
+    flag.walk_forward=0U;
+    flag.walk_backward=0U;
+    flag.move_to_left=0U;
+    flag.move_to_right=0U;
+    flag.turn_left=0U;
+    flag.turn_right=0U;
+    flag.angle_correct=0U;
+    speedparams.correct_w=0.0f;
+    flag.moving=0;
+    flag.Turn_Left_Or_Right=0U;
+    printf("StopMove success\n");
+}
+
+/**
+ * @brief   手势动作
+  */
+static void Gesture_Control(char *param)
+{
+    int gesture_id;
+    if(sscanf(param,"%d",&gesture_id)==1)
+    {
+        switch(gesture_id)
+        {
+            case 0:
+                
+                break;
+            case 1:
+                
+                break;
+            case 2:
+                
+                break;
+            case 3:
+                
+                break;
+            case 4:
+                
+                break;
+            case 5:
+
+                break;
+            default:
+                break;
+        }
+    }
+}
+
+extern float turnleftangle;
+/**
+* @brief   向左转
+*/
+static void Turn_Left(char *param)
+{
+    float angle;
+    if(sscanf(param,"%f",&angle)==1)
+    {
+        turnleftangle=angle;
+        flag.Turn_Left_Or_Right=1;
+    }
+  }
+
+/*** @brief   向右转
+*/
+static void Turn_Right(char *param)
+{
+    float angle;
+    if(sscanf(param,"%f",&angle)==1)
+    {
+        turnleftangle=-angle;
+        flag.Turn_Left_Or_Right=1;
+    }
+  }
+
+  extern volatile float battery_voltage;
+/**
+ * @brief  获取电池电压
+ */ 
+static void Get_Battery_Voltage(char *param)
+{
+  printf("Battery Voltage: %.2f V\n",battery_voltage+0.35f);
 }
 
 /***********************动作数组定义*********************/
@@ -424,9 +536,11 @@ static const Action action[] = {
     {"read_all_pos",0,0,ReadAllPos},
     {"set ",1,0,Set_Servo_Pos},
     {"read ",1,0,Read_Servo_Pos},
-    {"stop",0,0,Stop},
+    {"stopall",0,0,StopAll},
     {"zero_yaw",0,0,Zero_Yaw},
     {"off_zero_yaw",0,0,Off_Zero_Yaw},
+    {"imu_calibrate",0,0,IMU_Calibrate},
+    {"imu_reset",0,0,IMU_Reset},
     {"LX:",1,0,Gamepad_Control},
     {"arm_action_1",0,0,Arm_Action_1},
     {"arm_action_2",0,0,Arm_Action_2},
@@ -437,6 +551,11 @@ static const Action action[] = {
     {"opticalflow_data_reset",0,0,OpticalFlow_Data_Reset},
     {"[",1,0,Receive_Bmp},
     {"move ",1,0,Move},
+    {"stopmove",0,0,StopMove},
+    {"gesture:",1,0,Gesture_Control},
+    {"turn_left:",1,0,Turn_Left},
+    {"turn_right:",1,0,Turn_Right},
+    {"get_battery_voltage",0,0,Get_Battery_Voltage},
 }; // 动作表，存放所有动作的名称和对应的函数指针
 
 /**************查找动作名称字符串在动作表中的位置***********/

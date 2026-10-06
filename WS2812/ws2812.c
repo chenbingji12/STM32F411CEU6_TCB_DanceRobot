@@ -411,9 +411,9 @@ void WS2812_OffCmd(char *param)
 /**
  * @brief   ws2812颜色渐变,在task.c中调用，每39ms执行一次
  */
-/*void WS2812_Change(void)
+void WS2812_Change(void)
 {
-    static uint8_t red = 0;
+    /*static uint8_t red = 0;
     static uint8_t green = 0;
     static uint8_t blue = 0;
 
@@ -469,10 +469,10 @@ void WS2812_OffCmd(char *param)
     {
       blue=blue-3;
     }
-    WS2812_Fill(WS2812_BODY, red, green, blue);
+    WS2812_Fill(WS2812_BODY, red/4.0f, green/4.0f, blue/4.0f);
     WS2812_Fill(WS2812_SCREEN_1, green/4.0f, blue/4.0f, red/4.0f);
-    WS2812_Fill(WS2812_SCREEN_2, blue/4.0f, red/4.0f, green/4.0f);
-}*/
+    WS2812_Fill(WS2812_SCREEN_2, blue/4.0f, red/4.0f, green/4.0f);*/
+}
 
 //void WS2812_Change(void)
 //{
@@ -1010,106 +1010,106 @@ void WS2812_OffCmd(char *param)
 //}
 
 /* 绘制一行花瓣，超出灯屏的部分自动忽略 */
-static void Lotus_DrawRow(WS2812_Device screen, uint8_t row,
-                          int16_t left, int16_t right,
-                          uint8_t r, uint8_t g, uint8_t b)
-{
-    int16_t col;
+//static void Lotus_DrawRow(WS2812_Device screen, uint8_t row,
+//                          int16_t left, int16_t right,
+//                          uint8_t r, uint8_t g, uint8_t b)
+//{
+//    int16_t col;
 
-    for(col = left; col <= right; col++)
-    {
-        if((col >= 0) && (col < 16))
-        {
-            WS2812_ScreenSetPixel(screen, row, (uint8_t)col, r, g, b);
-        }
-    }
-}
+//    for(col = left; col <= right; col++)
+//    {
+//        if((col >= 0) && (col < 16))
+//        {
+//            WS2812_ScreenSetPixel(screen, row, (uint8_t)col, r, g, b);
+//        }
+//    }
+//}
 
-/* open为花瓣开度：0是花苞，6是盛开 */
-static void Lotus_Draw(WS2812_Device screen, uint8_t open)
-{
-    static const uint8_t center_left[8]  = {7, 7, 6, 6, 6, 6, 7, 7};
-    static const uint8_t center_right[8] = {8, 8, 9, 9, 9, 9, 8, 8};
-    uint8_t row;
-    int16_t offset;
-    int16_t width;
+///* open为花瓣开度：0是花苞，6是盛开 */
+//static void Lotus_Draw(WS2812_Device screen, uint8_t open)
+//{
+//    static const uint8_t center_left[8]  = {7, 7, 6, 6, 6, 6, 7, 7};
+//    static const uint8_t center_right[8] = {8, 8, 9, 9, 9, 9, 8, 8};
+//    uint8_t row;
+//    int16_t offset;
+//    int16_t width;
 
-    WS2812_Fill(screen, 0U, 0U, 0U);
+//    WS2812_Fill(screen, 0U, 0U, 0U);
 
-    /* 外层花瓣：上端向两侧展开，下端始终连接花托 */
-    for(row = 4U; row <= 11U; row++)
-    {
-        offset = (int16_t)(open * (11U - row) / 7U);
-        width = ((row == 4U) || (row == 11U)) ? 0 : 1;
+//    /* 外层花瓣：上端向两侧展开，下端始终连接花托 */
+//    for(row = 4U; row <= 11U; row++)
+//    {
+//        offset = (int16_t)(open * (11U - row) / 7U);
+//        width = ((row == 4U) || (row == 11U)) ? 0 : 1;
 
-        Lotus_DrawRow(screen, row, 7 - offset - width,
-                      7 - offset + width, 115U, 12U, 48U);
-        Lotus_DrawRow(screen, row, 8 + offset - width,
-                      8 + offset + width, 115U, 12U, 48U);
-    }
+//        Lotus_DrawRow(screen, row, 7 - offset - width,
+//                      7 - offset + width, 115U, 12U, 48U);
+//        Lotus_DrawRow(screen, row, 8 + offset - width,
+//                      8 + offset + width, 115U, 12U, 48U);
+//    }
 
-    /* 内层花瓣比外层展开得少，形成前后层次 */
-    for(row = 5U; row <= 10U; row++)
-    {
-        offset = (int16_t)(open * (11U - row) / 12U);
-        width = (row == 5U) ? 0 : 1;
+//    /* 内层花瓣比外层展开得少，形成前后层次 */
+//    for(row = 5U; row <= 10U; row++)
+//    {
+//        offset = (int16_t)(open * (11U - row) / 12U);
+//        width = (row == 5U) ? 0 : 1;
 
-        Lotus_DrawRow(screen, row, 7 - offset - width,
-                      7 - offset + width, 205U, 48U, 92U);
-        Lotus_DrawRow(screen, row, 8 + offset - width,
-                      8 + offset + width, 205U, 48U, 92U);
-    }
+//        Lotus_DrawRow(screen, row, 7 - offset - width,
+//                      7 - offset + width, 205U, 48U, 92U);
+//        Lotus_DrawRow(screen, row, 8 + offset - width,
+//                      8 + offset + width, 205U, 48U, 92U);
+//    }
 
-    /* 中央花瓣 */
-    for(row = 3U; row <= 10U; row++)
-    {
-        Lotus_DrawRow(screen, row,
-                      center_left[row - 3U], center_right[row - 3U],
-                      235U, 105U, 130U);
-    }
+//    /* 中央花瓣 */
+//    for(row = 3U; row <= 10U; row++)
+//    {
+//        Lotus_DrawRow(screen, row,
+//                      center_left[row - 3U], center_right[row - 3U],
+//                      235U, 105U, 130U);
+//    }
 
-    /* 盛开时露出花心 */
-    if(open >= 3U)
-    {
-        Lotus_DrawRow(screen, 9U, 7, 8, 240U, 170U, 35U);
-    }
+//    /* 盛开时露出花心 */
+//    if(open >= 3U)
+//    {
+//        Lotus_DrawRow(screen, 9U, 7, 8, 240U, 170U, 35U);
+//    }
 
-    /* 花托和花茎 */
-    Lotus_DrawRow(screen, 11U, 4, 7, 15U, 100U, 35U);
-    Lotus_DrawRow(screen, 11U, 8, 11, 15U, 100U, 35U);
-    Lotus_DrawRow(screen, 12U, 5, 10, 8U, 75U, 24U);
-    Lotus_DrawRow(screen, 13U, 7, 8, 8U, 70U, 20U);
-    Lotus_DrawRow(screen, 14U, 7, 8, 8U, 70U, 20U);
-    Lotus_DrawRow(screen, 15U, 7, 8, 8U, 70U, 20U);
-}
+//    /* 花托和花茎 */
+//    Lotus_DrawRow(screen, 11U, 4, 7, 15U, 100U, 35U);
+//    Lotus_DrawRow(screen, 11U, 8, 11, 15U, 100U, 35U);
+//    Lotus_DrawRow(screen, 12U, 5, 10, 8U, 75U, 24U);
+//    Lotus_DrawRow(screen, 13U, 7, 8, 8U, 70U, 20U);
+//    Lotus_DrawRow(screen, 14U, 7, 8, 8U, 70U, 20U);
+//    Lotus_DrawRow(screen, 15U, 7, 8, 8U, 70U, 20U);
+//}
 
-/**
- * @brief 莲花开合动画，由任务表每39ms调用一次
- */
-void WS2812_Change(void)
-{
-    static uint8_t frame = 0U;
-    uint8_t open;
+///**
+// * @brief 莲花开合动画，由任务表每39ms调用一次
+// */
+//void WS2812_Change(void)
+//{
+//    static uint8_t frame = 0U;
+//    uint8_t open;
 
-    if(frame <= 48U)
-    {
-        open = (uint8_t)(frame * 6U / 48U); /* 约1.9秒展开 */
-    }
-    else if(frame <= 64U)
-    {
-        open = 6U;                          /* 约0.6秒保持盛开 */
-    }
-    else
-    {
-        open = (uint8_t)((113U - frame) * 6U / 48U);
-    }                                       /* 约1.9秒收拢 */
+//    if(frame <= 48U)
+//    {
+//        open = (uint8_t)(frame * 6U / 48U); /* 约1.9秒展开 */
+//    }
+//    else if(frame <= 64U)
+//    {
+//        open = 6U;                          /* 约0.6秒保持盛开 */
+//    }
+//    else
+//    {
+//        open = (uint8_t)((113U - frame) * 6U / 48U);
+//    }                                       /* 约1.9秒收拢 */
 
-    Lotus_Draw(WS2812_SCREEN_1, open);
-    Lotus_Draw(WS2812_SCREEN_2, open);
+//    Lotus_Draw(WS2812_SCREEN_1, open);
+//    Lotus_Draw(WS2812_SCREEN_2, open);
 
-    frame++;
-    if(frame >= 114U)
-    {
-        frame = 0U;
-    }
-}
+//    frame++;
+//    if(frame >= 114U)
+//    {
+//        frame = 0U;
+//    }
+//}
