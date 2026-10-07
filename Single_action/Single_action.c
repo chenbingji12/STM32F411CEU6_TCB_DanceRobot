@@ -375,7 +375,7 @@ void Gamepad_Control(char *param)
       flag.moving=current_moving;
     }
 
-    Get_Step_Length(speedparams.target_v,speedparams.target_w,T);
+    //Get_Step_Length(speedparams.target_v,speedparams.target_w,T);
 }
 
 /**
@@ -436,7 +436,6 @@ void Move(char *param)
         flag.angle_correct=1;
         flag.walk_forward=1;
         flag.moving=1;
-        Get_Step_Length(speedparams.target_v,speedparams.target_w,T);
     }
     printf("Move success:v=%f,w=%f,T=%f\n",v,w,T);
 }
@@ -530,6 +529,35 @@ static void Get_Battery_Voltage(char *param)
   printf("Battery Voltage: %.2f V\n",battery_voltage+0.35f);
 }
 
+extern GaitMode gaitmode;
+/**
+ * @brief  切换步态
+ */
+static void Switch_GaitMode_To_TROT(char *param)
+{
+    gaitmode=TROT;
+    printf("Switch_GaitMode_To_TROT success\n");
+}
+static void Switch_GaitMode_To_WALK(char *param)
+{
+    gaitmode=WALK;
+    printf("Switch_GaitMode_To_WALK success\n");
+}
+static void Switch_GaitMode_To_TURTLE(char *param)
+{
+    gaitmode=TURTLE;
+    printf("Switch_GaitMode_To_TURTLE success\n");
+}
+
+/**
+ * @brief  获取当前IMU偏航角
+ */
+static void Get_IMU_Yaw(char *param)
+{
+    IMU_Data_t *imu_data = IMU_GetData();
+    printf("Current IMU Yaw: %.2f degrees\n", imu_data->yaw);
+}
+
 /***********************动作数组定义*********************/
 static const Action action[] = {
     {"reset_whole", 0, 0,Reset_Whole},
@@ -544,6 +572,8 @@ static const Action action[] = {
     {"LX:",1,0,Gamepad_Control},
     {"arm_action_1",0,0,Arm_Action_1},
     {"arm_action_2",0,0,Arm_Action_2},
+    {"init_to_half_stand",0,0,Init_To_Half_Stand},
+    {"half_stand_to_init",0,0,Half_Stand_To_Init},
     {"led_test",0,0,WS2812_TestCmd},
     {"led_fill ",1,0,WS2812_FillCmd},
     {"led_off",0,0,WS2812_OffCmd},
@@ -556,6 +586,10 @@ static const Action action[] = {
     {"turn_left:",1,0,Turn_Left},
     {"turn_right:",1,0,Turn_Right},
     {"get_battery_voltage",0,0,Get_Battery_Voltage},
+    {"switch_gaitmode_to_trot",0,0,Switch_GaitMode_To_TROT},
+    {"switch_gaitmode_to_walk",0,0,Switch_GaitMode_To_WALK},
+    {"switch_gaitmode_to_turtle",0,0,Switch_GaitMode_To_TURTLE},
+    {"get_imu_yaw",0,0,Get_IMU_Yaw},
 }; // 动作表，存放所有动作的名称和对应的函数指针
 
 /**************查找动作名称字符串在动作表中的位置***********/

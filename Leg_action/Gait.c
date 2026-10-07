@@ -74,7 +74,7 @@ static void Choose_Leg_Direction(Flag flag)
 }
 
 #define ANGLE_CORRECT_MAX_SAMPLES 256U // 角度误差滑动窗口的最大采样数
-#define ANGLE_CORRECT_OUTPUT_LIMIT 0.3f // 角速度校正输出限幅，单位：弧度/秒
+#define ANGLE_CORRECT_OUTPUT_LIMIT 0.4f // 角速度校正输出限幅，单位：弧度/秒
 #define ANGLE_CORRECT_INTEGRAL_LIMIT 20.0f // 积分项限幅，单位：度*秒
 #define ANGLE_CORRECT_TASK_PERIOD 10.0f // 角度校正任务周期，单位：毫秒
 
@@ -122,7 +122,12 @@ void Get_Step_Length(float v,float w,float T)
         right_front_params.step_length=
         right_back_params.step_length=(right_v/T)*100;//右腿的步长，单位转化为厘米
     }
+    static uint32_t last_log_time=0;
+    uint32_t current_time=HAL_GetTick();
+    if(current_time-last_log_time>=30)
+    {
     printf("w=%f\n",w);
+    }
 }
 
 /**
@@ -428,8 +433,8 @@ static float Low_Pass_Filter(float input)
  */
 static float Angle_Correct_PID(float gait_period,float target_angle,float current_angle)
 {
-    static float kp=0.1f;
-    static float ki=0.0f;
+    static float kp=0.12f;
+    static float ki=0.005f;
     static float kd=0.002f;
     uint8_t angle_correct_update=0U;
     uint32_t current_time=HAL_GetTick();
@@ -526,15 +531,17 @@ void Angle_Correct_Process(void)
     target_yaw=Wrap_Angle(target_yaw);
     
     speedparams.correct_w=Angle_Correct_PID(left_front_params.period,target_yaw,imu->yaw);
+
     }
+    Get_Step_Length(speedparams.target_v,speedparams.target_w,left_front_params.period/1000.0f);
+    
     last_time=current_time;
 
-    if(current_time-last_log_time>=100U)//100ms打印一次
+    if(current_time-last_log_time>=50U)//50ms打印一次
     {
-        printf("correct_w_x1000=%d yaw_x100=%d error_x100=%d\n",
-            (int)(speedparams.correct_w*1000.0f),
-            (int)(imu->yaw*100.0f),
-            (int)(angle_average*100.0f));
+        printf("correct_w=%f,move_error=%f\n",
+            speedparams.correct_w,
+            angle_average);
         last_log_time=current_time;
     }
 }

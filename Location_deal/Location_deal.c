@@ -51,7 +51,7 @@ float turnleftangle=0.0f;
 void Turn_Left_Or_Right_Task(void)
 {
     static float kp=0.12f;
-    static float kd=0.002f;
+    static float kd=0.0f;
     static float dt=0.01f;
     static float last_error=0.0f;
     static float start_yaw=0.0f;
@@ -59,17 +59,49 @@ void Turn_Left_Or_Right_Task(void)
     static float current_yaw=0.0f;
     static IMU_Data_t* imu_only_yaw;
     imu_only_yaw=IMU_GetData();
+
+    //滑动平均滤波
+    static float move_average_yaw[150]={0.0f};
+    static uint8_t move_average_index=0;
+    static uint8_t move_average_count=0;
+    static float error_sum=0.0f;
+
+    float error=0.0f;
+
     //如果是第一次执行任务，初始化开始角度
     if(start_yaw==0.0f)
     {
         start_yaw=imu_only_yaw->yaw;
         target_yaw=Wrap_Yaw_Delta(start_yaw+turnleftangle);
+        printf("start_yaw=%f,target_yaw=%f\n",start_yaw,target_yaw);
     }
 
     current_yaw=imu_only_yaw->yaw;
 
+    move_average_yaw[move_average_index]=Wrap_Yaw_Delta(target_yaw-current_yaw);
+    move_average_index=(move_average_index+1)%150;
+    if(move_average_count<150)
+    {
+        move_average_count++;
+        for(uint8_t i=0;i<move_average_count;i++)
+        {
+            error_sum+=move_average_yaw[i];
+        }
+        error=error_sum/move_average_count;
+        error_sum=0.0f;
+    }
+    else
+    {
+        for(uint8_t i=0;i<150;i++)
+        {
+            error_sum+=move_average_yaw[i];
+        }
+        error=error_sum/150.0f;
+        error_sum=0.0f;
+    }
+
     //计算误差
-    float error=Wrap_Yaw_Delta(target_yaw-current_yaw);
+    //float error=Wrap_Yaw_Delta(target_yaw-move_average_value);
 
     //此次误差与上次误差符号相反，说明已经过了目标角度，停止转动
     if((last_error > 0.0f && error < 0.0f) ||
@@ -79,11 +111,17 @@ void Turn_Left_Or_Right_Task(void)
         flag.walk_forward=0U;
         flag.moving=0;
         start_yaw=0.0f;
-
         last_error=0.0f;
+        error_sum=0.0f;
+        move_average_count=0;
+        move_average_index=0;
+        for(uint8_t i=0;i<150;i++)
+        {
+            move_average_yaw[i]=0.0f;
+        }
         printf("Turn_Left_Or_Right_Task finish\n");//向香橙派反馈
     }
-    else if(fabs(error)>0.7f)
+    else if(fabs(error)>1.5f)
     {
         float pid_correct_w=0.0f;
         if(last_error!=0.0f)
@@ -97,16 +135,17 @@ void Turn_Left_Or_Right_Task(void)
 
         pid_correct_w=(pid_correct_w>0.8f)?0.8f:pid_correct_w;
         pid_correct_w=(pid_correct_w<-0.8f)?-0.8f:pid_correct_w;
-        pid_correct_w=(fabs(pid_correct_w)<0.1f)?0.1f*pid_correct_w/fabs(pid_correct_w):pid_correct_w;
+        if (fabsf(pid_correct_w) < 0.2f)
+         {
+            pid_correct_w = (error >= 0.0f) ? 0.2f : -0.2f;
+        }
 
         Get_Step_Length(0.0f,-pid_correct_w,1.5f);
         flag.moving=1;
         flag.walk_forward=1;
-
         last_error=error;
 
-
-        printf("start_yaw=%f,target_yaw=%f,current_yaw=%f,error=%f\n",start_yaw,target_yaw,current_yaw,error);
+        printf("current_yaw=%f,error=%f\n",current_yaw,error);
     }
     else
     {
@@ -114,8 +153,15 @@ void Turn_Left_Or_Right_Task(void)
         flag.walk_forward=0U;
         flag.moving=0;
         start_yaw=0.0f;
-
         last_error=0.0f;
+        error_sum=0.0f;
+        move_average_count=0;
+        move_average_index=0;
+        for(uint8_t i=0;i<150;i++)
+        {
+            move_average_yaw[i]=0.0f;
+        }
+        
         printf("Turn_Left_Or_Right_Task finish\n");
     }
 }
