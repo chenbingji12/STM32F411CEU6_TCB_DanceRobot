@@ -5,6 +5,18 @@
   *          协议: 帧头0x7E 0x23, 变长帧, 小端序float, 累加和校验
   *          接收方式: USART2 DMA循环模式 + 空闲中断
   *
+  * 原始数据帧格式 (功能字0x04, 共23字节):
+  *   [0]  0x7E   帧头1
+  *   [1]  0x23   帧头2
+  *   [2]  0x17   帧长度(23)
+  *   [3]  0x04   功能字(原始数据)
+  *   [4-9]   Accel X/Y/Z  int16 小端序
+  *   [10-15] Gyro  X/Y/Z  int16 小端序
+  *   [16-21] Mag   X/Y/Z  int16 小端序
+  *   [22] checksum 校验和(0x7E累加到[21]取低字节)
+  *
+  * 缩放: 加速度 16/32767 (g), 陀螺 (2000/32767)*(pi/180) (rad/s), 磁力计 800/32767 (uT)
+  *
   * 欧拉角帧格式 (功能字0x26, 共17字节):
   *   [0]  0x7E  帧头1
   *   [1]  0x23  帧头2
@@ -27,6 +39,7 @@
 #define IMU_RAD_TO_DEG  (57.29577951308232f)  /* 180/PI, 弧度转角度 */
 #define IMU_ACCEL_SCALE (16.0f / 32767.0f)    /* 原始加速度转换为g */
 #define IMU_G_TO_MPS2   (9.80665f)             /* g转换为m/s^2 */
+#define IMU_GYRO_SCALE_DEG (2000.0f / 32767.0f) /* 原始陀螺转换为deg/s */
 
 /* Private variables ---------------------------------------------------------*/
 static UART_HandleTypeDef *s_huart = NULL;    /* USART句柄 */
@@ -115,6 +128,9 @@ static void IMU_ParseRawFrame(uint8_t *frame)
     int16_t raw_x;
     int16_t raw_y;
     int16_t raw_z;
+    int16_t raw_gyro_x;
+    int16_t raw_gyro_y;
+    int16_t raw_gyro_z;
 
     /* Accel X: frame[4..5] 小端序int16_t */
     raw_x = (int16_t)((uint16_t)frame[4] |
@@ -128,9 +144,25 @@ static void IMU_ParseRawFrame(uint8_t *frame)
     raw_z = (int16_t)((uint16_t)frame[8] |
                       ((uint16_t)frame[9] << 8));
 
+    /* Gyro X: frame[10..11] 小端序int16_t */
+    raw_gyro_x = (int16_t)((uint16_t)frame[10] |
+                           ((uint16_t)frame[11] << 8));
+
+    /* Gyro Y: frame[12..13] 小端序int16_t */
+    raw_gyro_y = (int16_t)((uint16_t)frame[12] |
+                           ((uint16_t)frame[13] << 8));
+
+    /* Gyro Z: frame[14..15] 小端序int16_t */
+    raw_gyro_z = (int16_t)((uint16_t)frame[14] |
+                           ((uint16_t)frame[15] << 8));
+
     s_imu_data.acc_x = raw_x * IMU_ACCEL_SCALE * IMU_G_TO_MPS2;
     s_imu_data.acc_y = raw_y * IMU_ACCEL_SCALE * IMU_G_TO_MPS2;
     s_imu_data.acc_z = raw_z * IMU_ACCEL_SCALE * IMU_G_TO_MPS2;
+
+    s_imu_data.gyro_x = raw_gyro_x * IMU_GYRO_SCALE_DEG;
+    s_imu_data.gyro_y = raw_gyro_y * IMU_GYRO_SCALE_DEG;
+    s_imu_data.gyro_z = raw_gyro_z * IMU_GYRO_SCALE_DEG;
 
     s_imu_data.acc_updated = 1;
     s_imu_data.acc_update_tick = HAL_GetTick();
@@ -221,10 +253,15 @@ static void IMU_ParseBuffer(uint8_t *buf, uint16_t len)
         /* 步骤5: 根据功能字分发解析 */
         uint8_t func = buf[i + 3];
         if (func == IMU_FUNC_RAW) {
-            IMU_ParseRawFrame(&buf[i]);
+            /* 校验帧长与功能字匹配, 避免畸形帧导致越界读取 */
+            if (frame_len == IMU_RAW_FRAME_LEN) {
+                IMU_ParseRawFrame(&buf[i]);
+            }
         }
         else if (func == IMU_FUNC_EULER) {
-            IMU_ParseEulerFrame(&buf[i]);
+            if (frame_len == IMU_EULER_FRAME_LEN) {
+                IMU_ParseEulerFrame(&buf[i]);
+            }
         }
         /* 其他功能字(0x16四元数/0x32气压)暂不解析 */
 

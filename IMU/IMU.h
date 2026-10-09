@@ -34,6 +34,9 @@ typedef struct {
     float acc_x;      /* X轴加速度, 单位: m/s^2 */
     float acc_y;      /* Y轴加速度, 单位: m/s^2 */
     float acc_z;      /* Z轴加速度, 单位: m/s^2 */
+    float gyro_x;     /* 陀螺仪X轴角速度, 单位: deg/s, 来自0x04帧 */
+    float gyro_y;     /* 陀螺仪Y轴角速度, 单位: deg/s, 来自0x04帧 */
+    float gyro_z;     /* 陀螺仪Z轴角速度, 单位: deg/s, 来自0x04帧 */
     uint8_t acc_updated;       /* 新加速度数据标志 */
     uint8_t attitude_updated;  /* 新姿态数据标志 */
     uint32_t acc_update_tick;  /* 加速度数据到达时间, 单位: 毫秒 */

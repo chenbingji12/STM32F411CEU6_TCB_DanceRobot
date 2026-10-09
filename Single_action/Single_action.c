@@ -550,6 +550,66 @@ static void Switch_GaitMode_To_TURTLE(char *param)
 }
 
 /**
+ * @brief  从初始状态到半起立
+ */
+static void Init_To_Half_Stand_cmd(char *param)
+{
+    flag.init_to_half_stand=1;
+    printf("Init_To_Half_Stand_cmd success\n");
+}
+static void Half_Stand_To_Init_cmd(char *param)
+{
+    flag.half_stand_to_init=1;
+    printf("Half_Stand_To_Init_cmd success\n");
+}
+static void Inverted_Pendulum_Prepare_cmd(char *param)
+{
+    flag.inverted_pendulum_prepare=1;
+    printf("Inverted_Pendulum_Prepare_cmd success\n");
+}
+static void Left_Depend_cmd(char *param)
+{
+    flag.left_depend=1;
+    printf("Left_Depend_cmd success\n");
+}
+static void Right_Depend_cmd(char *param)
+{
+    flag.right_depend=1;
+    printf("Right_Depend_cmd success\n");
+}
+
+/**
+ * @brief  打开花, 关闭花
+ */
+static void Flower_Open(char *param)
+{
+  Set_Servo_pwm_TargetAngle(100,1000);
+}
+static void Flower_Close(char *param)
+{
+  Set_Servo_pwm_TargetAngle(60,1000);
+}
+
+/**
+ * @brief  向左移动
+ */
+static void MoveLeft(char *param)
+{
+  flag.move_to_left=1;
+  flag.moving=1;
+}
+static void MoveRight(char *param)
+{
+  flag.move_to_right=1;
+  flag.moving=1;
+}
+static void MoveBack(char *param)
+{
+  flag.walk_backward=1;
+  flag.moving=1;
+}
+
+/**
  * @brief  获取当前IMU偏航角
  */
 static void Get_IMU_Yaw(char *param)
@@ -572,8 +632,11 @@ static const Action action[] = {
     {"LX:",1,0,Gamepad_Control},
     {"arm_action_1",0,0,Arm_Action_1},
     {"arm_action_2",0,0,Arm_Action_2},
-    {"init_to_half_stand",0,0,Init_To_Half_Stand},
-    {"half_stand_to_init",0,0,Half_Stand_To_Init},
+    {"init_to_half_stand",0,0,Init_To_Half_Stand_cmd},
+    {"half_stand_to_init",0,0,Half_Stand_To_Init_cmd},
+    {"inverted_pendulum_prepare",0,0,Inverted_Pendulum_Prepare_cmd},
+    {"left_depend",0,0,Left_Depend_cmd},
+    {"right_depend",0,0,Right_Depend_cmd},
     {"led_test",0,0,WS2812_TestCmd},
     {"led_fill ",1,0,WS2812_FillCmd},
     {"led_off",0,0,WS2812_OffCmd},
@@ -590,6 +653,11 @@ static const Action action[] = {
     {"switch_gaitmode_to_walk",0,0,Switch_GaitMode_To_WALK},
     {"switch_gaitmode_to_turtle",0,0,Switch_GaitMode_To_TURTLE},
     {"get_imu_yaw",0,0,Get_IMU_Yaw},
+    {"flower_open",0,0,Flower_Open},
+    {"flower_close",0,0,Flower_Close},
+    {"moveleft",0,0,MoveLeft},
+    {"moveright",0,0,MoveRight},
+    {"moveback:",1,0,MoveBack},
 }; // 动作表，存放所有动作的名称和对应的函数指针
 
 /**************查找动作名称字符串在动作表中的位置***********/

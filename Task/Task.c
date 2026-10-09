@@ -44,6 +44,11 @@ uint32_t IMU_CalcSpeedAndDisplacement_interval_ms = 5;   //IMU速度与位移计
 uint32_t Turn_Left_Or_Right_interval_ms = 10;   //原地旋转任务周期，10ms
 
 /**
+ * @brief  倒立摆PID调整任务周期与激活状态
+ */
+uint32_t Inverted_Pendulum_PID_Adjust_interval_ms = 10;   //倒立摆PID调整任务周期，10ms
+
+/**
   * @brief  表驱动的时间触发合作式调度器
   */
 TaskDef task_table[] = {
@@ -53,6 +58,7 @@ TaskDef task_table[] = {
     {Realtime_Gait,&realtime_gait_interval_ms,0,(uint8_t*)&flag.moving},
     {IMU_CalcSpeedAndDisplacement,&IMU_CalcSpeedAndDisplacement_interval_ms,0,(uint8_t*)&flag.imu_speed_displacement_active},
     {Turn_Left_Or_Right_Task,&Turn_Left_Or_Right_interval_ms,0,(uint8_t*)&flag.Turn_Left_Or_Right},
+    {Inverted_Pendulum_PID_Adjust,&Inverted_Pendulum_PID_Adjust_interval_ms,0,(uint8_t*)&flag.inverted_pendulum_pid_adjust},
 };
 
 const uint8_t task_count=sizeof(task_table) / sizeof(task_table[0]);// 任务表中任务的数量
@@ -87,6 +93,66 @@ void Key_Event(void)
                 flag.key_event = 0;   // 松开，完整周期结束
             }
             break;
+    }
+}
+
+/**
+ * @brief   倒立摆PID调整，在task.c每10ms执行一次
+ */
+void Inverted_Pendulum_PID_Adjust(void)
+{
+    const float kp=4.0f;
+    const float ki=0.0f;
+    const float kd=0.0f;
+    const float dt=0.01f; // 10ms
+    static float integral_pitch_sum=0.0f;
+
+    static float last_error=0.0f;
+
+    static float target_pitch=0.0f;
+    
+    static IMU_Data_t* imu_roll_pitch;
+    imu_roll_pitch=IMU_GetData();
+    float current_pitch=imu_roll_pitch->pitch;
+
+    float error_pitch=target_pitch-current_pitch;
+
+    integral_pitch_sum+=error_pitch*dt;
+
+    integral_pitch_sum=(integral_pitch_sum>10.0f)?10.0f:integral_pitch_sum;
+    integral_pitch_sum=(integral_pitch_sum<-10.0f)?-10.0f:integral_pitch_sum;
+
+    float correct_pitch=0.0f;
+
+    if(last_error==0.0f)
+    {
+      Servo_Write(17,600,500);
+      correct_pitch=kp*error_pitch;
+    }
+    else
+    {
+      correct_pitch=kp*error_pitch+ki*integral_pitch_sum+kd*(error_pitch-last_error)/dt;
+    }
+
+    correct_pitch=(correct_pitch>60.0f)?60.0f:correct_pitch;
+    correct_pitch=(correct_pitch<-60.0f)?-60.0f:correct_pitch;
+
+    last_error=error_pitch;
+
+    if(current_pitch>-5.0f&&current_pitch<5.0f)
+    {
+      correct_pitch=0.0f;// 当角度在5度内时，不调整角度
+    }
+
+    Servo_Write(18,(uint16_t)(500+correct_pitch/180.0f*500.0f),10);
+    Servo_Write(20,(uint16_t)(500-correct_pitch/180.0f*500.0f),10);
+
+    static uint32_t last_print_time=0;
+    if(HAL_GetTick()-last_print_time>=50)
+    {
+      printf("pitch=%f\n",current_pitch);
+    printf("correct_pitch=%f\n",correct_pitch);
+    last_print_time=HAL_GetTick();
     }
 }
 

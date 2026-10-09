@@ -17,6 +17,15 @@ uint16_t Half_Stand_To_Full_Stand_Step_Time = 1000; // 从半起立到完全起�
 uint8_t Full_Stand_To_Half_Stand_Frame_Index = 4; // 当前从完全起立到半起立动作的帧索引
 uint16_t Full_Stand_To_Half_Stand_Step_Time = 1000; // 从完全起立到半起立动作每帧的执行时间 (毫秒)
 
+uint8_t Inverted_Pendulum_Prepare_Index = 0; // 当前倒立摆动作准备的帧索引
+uint16_t Inverted_Pendulum_Prepare_Step_Time = 1000; // 倒立摆动作准备每帧的执行时间 (毫秒)
+
+uint8_t Left_Depend_Frame_Index = 0; // 当前左支撑动作的帧索引
+uint16_t Left_Depend_Step_Time = 1000; // 左支撑动作每帧的执行时间 (毫秒)
+
+uint8_t Right_Depend_Frame_Index = 0; // 当前右支撑动作的帧索引
+uint16_t Right_Depend_Step_Time = 1000; // 右支撑动作每帧的执行时间 (毫秒)
+
 /**
  * @brief   计算完成当前帧所需的时间
  * @param   array: 三维数组，包含动作数据
@@ -58,6 +67,9 @@ LegAction leg_action_table[] = {
     {Half_Stand_To_Init, 0, &Half_Stand_To_Init_Step_Time, (uint8_t*)&flag.half_stand_to_init},
     {Half_Stand_To_Full_Stand, 0, &Half_Stand_To_Full_Stand_Step_Time, (uint8_t*)&flag.half_stand_to_full_stand},
     {Full_Stand_To_Half_Stand, 0, &Full_Stand_To_Half_Stand_Step_Time, (uint8_t*)&flag.full_stand_to_half_stand},
+    {Inverted_Pendulum_Prepare, 0, &Inverted_Pendulum_Prepare_Step_Time, (uint8_t*)&flag.inverted_pendulum_prepare},
+    {Left_Depend, 0, &Left_Depend_Step_Time, (uint8_t*)&flag.left_depend},
+    {Right_Depend, 0, &Right_Depend_Step_Time, (uint8_t*)&flag.right_depend},
 };
 
 const uint8_t leg_action_count = sizeof(leg_action_table) / sizeof(leg_action_table[0]); // 腿部动作表中动作的数量
@@ -125,6 +137,49 @@ void Full_Stand_To_Half_Stand(void)
     else
     {
         Full_Stand_To_Half_Stand_Frame_Index--;   // 正常递减
+    }
+}
+
+/**
+ * @brief   倒立摆动作准备的执行函数
+ */
+void Inverted_Pendulum_Prepare(void)
+{
+    Send_Data_to_Servo(Inverted_Pendulum_Prepare_Data, Inverted_Pendulum_Prepare_Index); // 发送当前帧的数据给舵机
+    Inverted_Pendulum_Prepare_Step_Time = Max_Frame_Time(Inverted_Pendulum_Prepare_Data, Inverted_Pendulum_Prepare_Index); // 计算当前帧所需的时间
+    Inverted_Pendulum_Prepare_Index = (Inverted_Pendulum_Prepare_Index + 1) % Inverted_Pendulum_Prepare_Count; // 更新帧索引
+    if (Inverted_Pendulum_Prepare_Index == 0)
+    {
+        flag.inverted_pendulum_prepare = 0;
+        flag.inverted_pendulum_pid_adjust = 1;
+    }
+}
+
+/**
+ * @brief   左支撑动作的执行函数
+ */
+void Left_Depend(void)
+{
+    Send_Data_to_Servo(Left_Depend_Data, Left_Depend_Frame_Index); // 发送当前帧的数据给舵机
+    Left_Depend_Step_Time = Max_Frame_Time(Left_Depend_Data, Left_Depend_Frame_Index); // 计算当前帧所需的时间
+    Left_Depend_Frame_Index = (Left_Depend_Frame_Index + 1) % Left_Depend_Count; // 更新帧索引
+    if (Left_Depend_Frame_Index == 0)
+    {
+        flag.left_depend = 0;
+    }
+}
+
+/**
+ * @brief   右支撑动作的执行函数
+ */
+void Right_Depend(void)
+{
+    Send_Data_to_Servo(Right_Depend_Data, Right_Depend_Frame_Index); // 发送当前帧的数据给舵机
+    Right_Depend_Step_Time = Max_Frame_Time(Right_Depend_Data, Right_Depend_Frame_Index); // 计算当前帧所需的时间
+    Right_Depend_Frame_Index = (Right_Depend_Frame_Index + 1) % Right_Depend_Count; // 更新帧索引
+    if (Right_Depend_Frame_Index == 0)
+    {
+        flag.right_depend = 0;
     }
 }
 

@@ -90,6 +90,10 @@ typedef struct {
     uint8_t flow_i2c_recover;    //光流I2C总线恢复标志
     uint8_t imu_speed_displacement_active;    //IMU速度与位移计算任务激活标志
     uint8_t Turn_Left_Or_Right;    //向左转角度动作标志
+    uint8_t inverted_pendulum_prepare;    //倒立摆动作准备标志
+    uint8_t inverted_pendulum_pid_adjust;    //倒立摆PID调整任务激活标志
+    uint8_t left_depend;    //左支撑动作执行标志
+    uint8_t right_depend;    //右支撑动作执行标志
    } Flag;
 extern volatile Flag flag;    //动作执行状态标志变量
 

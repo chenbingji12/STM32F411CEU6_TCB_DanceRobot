@@ -16,6 +16,15 @@ extern uint8_t const Init_To_Half_Stand_Count; // 从初始状态到半起立动
 extern const uint16_t Half_Stand_To_Full_Stand_Data[][16][3]; // 从半起立到完全起立动作数据
 extern uint8_t const Half_Stand_To_Full_Stand_Count; // 从半起立到完全起立动作的帧数
 
+extern const uint16_t Inverted_Pendulum_Prepare_Data[][16][3]; // 倒立摆动作准备数据
+extern uint8_t const Inverted_Pendulum_Prepare_Count; // 倒立摆
+
+extern const uint16_t Left_Depend_Data[][16][3]; // 左支撑动作数据
+extern uint8_t const Left_Depend_Count; // 左支撑动作的帧数
+
+extern const uint16_t Right_Depend_Data[][16][3]; // 右支撑动作数据
+extern uint8_t const Right_Depend_Count; // 右支撑动作的帧数
+
 /**
  *@brief   腿部动作调度结构体
  */
@@ -34,6 +43,9 @@ void Init_To_Half_Stand(void);    // 从初始状态到半起立动作的执行�
 void Half_Stand_To_Init(void);    // 从半起立到初始状态动作的执行函数
 void Half_Stand_To_Full_Stand(void);    // 从半起立到完全起立动作的执行函数
 void Full_Stand_To_Half_Stand(void);    // 从完全起立到半起立动作的执行函数
+void Inverted_Pendulum_Prepare(void);    // 倒立摆动作准备的执行函数
+void Left_Depend(void);    // 左支撑动作的执行函数
+void Right_Depend(void);    // 右支撑动作的执行函数
 
 void Leg_Action_Process(void);    // 腿部动作调度函数
 

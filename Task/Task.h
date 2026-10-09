@@ -43,6 +43,7 @@ void Key_Event(void);    //按键事件处理函数
 void I2S_Beat_Action(void);    //节拍触发任务函数
 void I2S_Beat_Task(void);    //节拍检测任务函数
 void Realtime_Gait(void);    //实时步态任务函数
+void Inverted_Pendulum_PID_Adjust(void);
 
 void Task_Process(void);    //任务处理函数
 

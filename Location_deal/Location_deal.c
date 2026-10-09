@@ -61,10 +61,13 @@ void Turn_Left_Or_Right_Task(void)
     imu_only_yaw=IMU_GetData();
 
     //滑动平均滤波
-    static float move_average_yaw[150]={0.0f};
+    static float move_average_yaw[2]={0.0f};
     static uint8_t move_average_index=0;
     static uint8_t move_average_count=0;
     static float error_sum=0.0f;
+
+    //一阶低通滤波
+    const float k=0.9f;
 
     float error=0.0f;
 
@@ -78,9 +81,20 @@ void Turn_Left_Or_Right_Task(void)
 
     current_yaw=imu_only_yaw->yaw;
 
-    move_average_yaw[move_average_index]=Wrap_Yaw_Delta(target_yaw-current_yaw);
-    move_average_index=(move_average_index+1)%150;
-    if(move_average_count<150)
+    if(last_error!=0.0f)
+    {
+    float current_error=Wrap_Yaw_Delta(target_yaw-current_yaw);
+    float filtered_error=current_error*k+last_error*(1-k);
+    error=filtered_error;
+    }
+    else
+    {
+        error=Wrap_Yaw_Delta(target_yaw-current_yaw);
+    }
+
+    /*move_average_yaw[move_average_index]=Wrap_Yaw_Delta(target_yaw-current_yaw);
+    move_average_index=(move_average_index+1)%2;
+    if(move_average_count<2)
     {
         move_average_count++;
         for(uint8_t i=0;i<move_average_count;i++)
@@ -92,13 +106,13 @@ void Turn_Left_Or_Right_Task(void)
     }
     else
     {
-        for(uint8_t i=0;i<150;i++)
+        for(uint8_t i=0;i<2;i++)
         {
             error_sum+=move_average_yaw[i];
         }
-        error=error_sum/150.0f;
+        error=error_sum/2.0f;
         error_sum=0.0f;
-    }
+    }*/
 
     //计算误差
     //float error=Wrap_Yaw_Delta(target_yaw-move_average_value);
@@ -115,7 +129,7 @@ void Turn_Left_Or_Right_Task(void)
         error_sum=0.0f;
         move_average_count=0;
         move_average_index=0;
-        for(uint8_t i=0;i<150;i++)
+        for(uint8_t i=0;i<2;i++)
         {
             move_average_yaw[i]=0.0f;
         }
@@ -157,7 +171,7 @@ void Turn_Left_Or_Right_Task(void)
         error_sum=0.0f;
         move_average_count=0;
         move_average_index=0;
-        for(uint8_t i=0;i<150;i++)
+        for(uint8_t i=0;i<2;i++)
         {
             move_average_yaw[i]=0.0f;
         }
