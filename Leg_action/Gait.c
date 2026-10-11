@@ -95,6 +95,9 @@ static uint32_t pid_last_time=0;//上一次PID计算时间
  */
 void Get_Step_Length(float v,float w,float T)
 {
+    float left_step;
+    float right_step;
+
     left_front_params.period=
     left_back_params.period=
     right_front_params.period=
@@ -105,22 +108,58 @@ void Get_Step_Length(float v,float w,float T)
 
     if(w==0.0f)//直线运动
     {
-        left_front_params.step_length=
-        right_front_params.step_length=
-        left_back_params.step_length=
-        right_back_params.step_length=(v/T)*100;
+        left_step=right_step=(v/T)*100;
     }
     else
     {
         float r=v/w;//圆半径，单位：米
 
         float left_v=(r+DISTANCE_BETWEEN_LEGS/200.0f)*w;//左腿的线速度，单位：米/秒
-        left_front_params.step_length=
-        left_back_params.step_length=(left_v/T)*100;//左腿的步长，单位转化为厘米
+        left_step=(left_v/T)*100;//左腿的步长，单位转化为厘米
 
         float right_v=(r-DISTANCE_BETWEEN_LEGS/200.0f)*w;
-        right_front_params.step_length=
-        right_back_params.step_length=(right_v/T)*100;//右腿的步长，单位转化为厘米
+        right_step=(right_v/T)*100;//右腿的步长，单位转化为厘米
+    }
+
+    /*
+     * 根据运动方向选择参与航向角修正的腿组：
+     * 前进使用物理左右腿，侧移使用前后腿，后退交换左右腿修正顺序。
+     */
+    if(flag.walk_forward==1U)
+    {
+        left_front_params.step_length=left_step;
+        left_back_params.step_length=left_step;
+        right_front_params.step_length=right_step;
+        right_back_params.step_length=right_step;
+    }
+    else if(flag.walk_backward==1U)
+    {
+        left_front_params.step_length=right_step;
+        left_back_params.step_length=right_step;
+        right_front_params.step_length=left_step;
+        right_back_params.step_length=left_step;
+    }
+    else if(flag.move_to_left==1U)
+    {
+        left_front_params.step_length=left_step;
+        right_front_params.step_length=left_step;
+        left_back_params.step_length=right_step;
+        right_back_params.step_length=right_step;
+    }
+    else if(flag.move_to_right==1U)
+    {
+        left_front_params.step_length=right_step;
+        right_front_params.step_length=right_step;
+        left_back_params.step_length=left_step;
+        right_back_params.step_length=left_step;
+    }
+    else
+    {
+        /* 原地旋转或无平移方向时，保留原有左右腿步长分配。 */
+        left_front_params.step_length=left_step;
+        left_back_params.step_length=left_step;
+        right_front_params.step_length=right_step;
+        right_back_params.step_length=right_step;
     }
     static uint32_t last_log_time=0;
     uint32_t current_time=HAL_GetTick();

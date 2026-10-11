@@ -219,8 +219,6 @@ HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);//LED 点亮
 
     Leg_Action_Process();    //腿部动作处理函数
 
-    Arm_Action_Process();    //机械臂动作处理函数
-
     Task_Process();    //任务处理函数
 
     imu = IMU_GetData();    //获取当前IMU数据
@@ -229,6 +227,8 @@ HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);//LED 点亮
 
     BeatData* data_current = Get_BeatData();    //获取当前节拍数据指针
     Update_BeatIndex(data_current);    //更新当前节拍索引
+
+    Arm_Action_Process();    //机械臂动作处理函数
 
 		tick = HAL_GetTick();
 

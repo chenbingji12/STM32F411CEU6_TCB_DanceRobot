@@ -139,11 +139,6 @@ void Inverted_Pendulum_PID_Adjust(void)
 
     last_error=error_pitch;
 
-    if(current_pitch>-5.0f&&current_pitch<5.0f)
-    {
-      correct_pitch=0.0f;// 当角度在5度内时，不调整角度
-    }
-
     Servo_Write(18,(uint16_t)(500+correct_pitch/180.0f*500.0f),10);
     Servo_Write(20,(uint16_t)(500-correct_pitch/180.0f*500.0f),10);
 

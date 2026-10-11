@@ -102,6 +102,7 @@ void StopAll(char *param)
     speedparams.target_w=0.0f;
     speedparams.correct_w=0.0f;
     flag.Turn_Left_Or_Right=0U;
+    Arm_Action_StopAll();
     printf("StopAll success\n");
 }
 
@@ -149,7 +150,56 @@ void IMU_Reset(char *param)
 }
 
 /**
-  * @brief   游戏手柄远程遥控数据处理
+ * @brief  设置平移方向并启动航向角保持
+ * @param  direction: 0=前进, 1=后退, 2=左移, 3=右移
+ */
+static void Start_Directional_Move(uint8_t direction)
+{
+    uint8_t direction_changed=0U;
+
+    if((flag.moving==0U) ||
+       ((direction==0U) && (flag.walk_forward==0U)) ||
+       ((direction==1U) && (flag.walk_backward==0U)) ||
+       ((direction==2U) && (flag.move_to_left==0U)) ||
+       ((direction==3U) && (flag.move_to_right==0U)))
+    {
+        direction_changed=1U;
+    }
+
+    flag.walk_forward=0U;
+    flag.walk_backward=0U;
+    flag.move_to_left=0U;
+    flag.move_to_right=0U;
+
+    if(direction==0U)
+    {
+        flag.walk_forward=1U;
+    }
+    else if(direction==1U)
+    {
+        flag.walk_backward=1U;
+    }
+    else if(direction==2U)
+    {
+        flag.move_to_left=1U;
+    }
+    else if(direction==3U)
+    {
+        flag.move_to_right=1U;
+    }
+
+    /* 平移时不继承之前的旋转目标，保持当前yaw。 */
+    speedparams.target_w=0.0f;
+    if(direction_changed!=0U)
+    {
+        speedparams.correct_w=0.0f;
+        flag.angle_correct=1U;
+    }
+    flag.moving=1U;
+}
+
+/**
+ * @brief   游戏手柄远程遥控数据处理
   * @param  param: 参数字符串
  * @retval  无
  */
@@ -306,16 +356,16 @@ void Gamepad_Control(char *param)
       switch(d)//方向键按下
       {
         case 'U':
-        flag.walk_forward=1;
+        Start_Directional_Move(0U);
           break;
         case 'D':
-        flag.walk_backward=1;
+        Start_Directional_Move(1U);
           break;
         case 'L':
-        flag.move_to_left=1;
+        Start_Directional_Move(2U);
           break;
         case 'R':
-        flag.move_to_right=1;
+        Start_Directional_Move(3U);
           break;
         default:
         flag.walk_forward=0;
@@ -407,17 +457,33 @@ void Receive_Bmp(char *param)
       {
         for(uint8_t i=0;i<10;i++)
         {
-          beat_data.beat_data[beat_data.beat_count]=bmp[i];
-          beat_data.beat_count++;
-          if(beat_data.beat_count>=500)
+          if((bmp[i]>=0) && (beat_data.beat_count<500U))
           {
-            beat_data.beat_count=500;
+            beat_data.beat_data[beat_data.beat_count]=(uint32_t)bmp[i];
+            beat_data.beat_count++;
           }
         }
         (g_mode==DEBUG) && printf("[Receive_Bmp] %d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
           bmp[0],bmp[1],bmp[2],bmp[3],bmp[4],bmp[5],bmp[6],bmp[7],bmp[8],bmp[9]);
       }
     }
+
+/**
+ * @brief  启动上位机节拍时间轴
+ */
+static void Beat_Start_Cmd(char *param)
+{
+    Arm_Action_StopAll();
+    Beat_Start();
+    if(Beat_IsRunning()!=0U)
+    {
+        printf("Beat_Start success,count=%u\n",beat_data.beat_count);
+    }
+    else
+    {
+        printf("Beat_Start error: need at least 2 timestamps\n");
+    }
+}
 
 /**
  * @brief   移动机器人
@@ -427,7 +493,8 @@ void Receive_Bmp(char *param)
 void Move(char *param)
 {
     float v,w,T;
-    if(sscanf(param,"%f %f %f",&v,&w,&T)==3)
+    int derection;
+    if(sscanf(param,"%f %f %f %d",&v,&w,&T,&derection)==4)
     {
         speedparams.target_v=v;
         speedparams.target_w=w;
@@ -438,6 +505,36 @@ void Move(char *param)
         flag.moving=1;
     }
     printf("Move success:v=%f,w=%f,T=%f\n",v,w,T);
+
+    switch(derection)
+    {
+        case 0:
+            flag.walk_forward=1;
+            flag.walk_backward=0;
+            flag.move_to_left=0;
+            flag.move_to_right=0;
+            break;
+        case 1:
+            flag.walk_backward=1;
+            flag.walk_forward=0;
+            flag.move_to_left=0;
+            flag.move_to_right=0;
+            break;
+        case 2:
+            flag.move_to_left=1;
+            flag.move_to_right=0;
+            flag.walk_forward=0;
+            flag.walk_backward=0;
+            break;
+        case 3:
+            flag.move_to_right=1;
+            flag.move_to_left=0;
+            flag.walk_forward=0;
+            flag.walk_backward=0;
+            break;
+        default:
+            break;
+    }
 }
 
 /**
@@ -595,18 +692,15 @@ static void Flower_Close(char *param)
  */
 static void MoveLeft(char *param)
 {
-  flag.move_to_left=1;
-  flag.moving=1;
+  Start_Directional_Move(2U);
 }
 static void MoveRight(char *param)
 {
-  flag.move_to_right=1;
-  flag.moving=1;
+  Start_Directional_Move(3U);
 }
 static void MoveBack(char *param)
 {
-  flag.walk_backward=1;
-  flag.moving=1;
+  Start_Directional_Move(1U);
 }
 
 /**
@@ -630,8 +724,11 @@ static const Action action[] = {
     {"imu_calibrate",0,0,IMU_Calibrate},
     {"imu_reset",0,0,IMU_Reset},
     {"LX:",1,0,Gamepad_Control},
+    {"arm_action_1_bmp",0,0,Arm_Action_1_Request},
+    {"arm_action_2_bmp",0,0,Arm_Action_2_Request},
     {"arm_action_1",0,0,Arm_Action_1},
     {"arm_action_2",0,0,Arm_Action_2},
+    {"beat_start",0,0,Beat_Start_Cmd},
     {"init_to_half_stand",0,0,Init_To_Half_Stand_cmd},
     {"half_stand_to_init",0,0,Half_Stand_To_Init_cmd},
     {"inverted_pendulum_prepare",0,0,Inverted_Pendulum_Prepare_cmd},

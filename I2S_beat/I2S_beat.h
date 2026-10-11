@@ -22,6 +22,9 @@
  * 双半缓冲: 每半区 256 个 32-bit 样本 */
 #define HALF_N              512U
 
+/* 相邻节拍间隔小于该值时，使用连续两个节拍的总时间作为动作周期 */
+#define BEAT_SHORT_INTERVAL_MS 500U
+
 /**
  * @brief  初始化模块, 启动 I2S2 DMA 循环接收
  * @note   必须在 MX_I2S2_Init() 与 MX_DMA_Init() 之后调用
@@ -65,5 +68,9 @@ extern BeatData beat_data; // 节拍数据结构体变量，用于存储从上�
 BeatData* Get_BeatData(void);
 void Update_BeatIndex(BeatData* beat_data);
 void I2S_Beat_Action(void);
+void Beat_Start(void);
+uint8_t Beat_IsRunning(void);
+uint16_t Beat_GetCurrentInterval(void);
+uint8_t Beat_GetNextStartTime(uint32_t *start_time);
 
 #endif
