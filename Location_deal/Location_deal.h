@@ -48,6 +48,9 @@ typedef struct {
 
 void Location_deal_GetIMUData(IMU_Data_t *imu);
 void Turn_Left_Or_Right_Task(void);
+void Location_deal_StartRelTurn(float delta_deg);
+void Location_deal_StartAbsTurn(float target_deg);
+void Location_deal_CancelTurn(void);
 void Location_deal_ZeroYaw(IMU_Data_t *imu);
 void Location_deal_CalcYawError(IMU_Data_t *imu);
 void Location_deal_ClearYawError(void);

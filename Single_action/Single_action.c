@@ -7,6 +7,17 @@
 
 extern GaitMode gaitmode;
 extern SpeedParams speedparams;
+extern uint32_t dance_start_time;
+
+#define FLOWER_MIN_SWITCH_INTERVAL_MS 200U
+
+static uint8_t flower_bpm_active=0U;
+static uint8_t flower_target_open=0U;
+static uint8_t flower_have_last_beat=0U;
+static uint16_t flower_next_beat_index=0U;
+static uint32_t flower_beat_start_time=0U;
+static uint32_t flower_last_beat_time=0U;
+static uint32_t flower_last_switch_tick=0U;
 
 /**
  * @brief   向舵机发送动作数据
@@ -101,8 +112,9 @@ void StopAll(char *param)
     speedparams.target_v=0.0f;
     speedparams.target_w=0.0f;
     speedparams.correct_w=0.0f;
-    flag.Turn_Left_Or_Right=0U;
+    Location_deal_CancelTurn();
     Arm_Action_StopAll();
+    flower_bpm_active=0U;
     printf("StopAll success\n");
 }
 
@@ -165,6 +177,8 @@ static void Start_Directional_Move(uint8_t direction)
     {
         direction_changed=1U;
     }
+
+    Location_deal_CancelTurn();
 
     flag.walk_forward=0U;
     flag.walk_backward=0U;
@@ -474,6 +488,7 @@ void Receive_Bmp(char *param)
 static void Beat_Start_Cmd(char *param)
 {
     Arm_Action_StopAll();
+    flower_bpm_active=0U;
     Beat_Start();
     if(Beat_IsRunning()!=0U)
     {
@@ -496,6 +511,8 @@ void Move(char *param)
     int derection;
     if(sscanf(param,"%f %f %f %d",&v,&w,&T,&derection)==4)
     {
+        Location_deal_CancelTurn();
+
         speedparams.target_v=v;
         speedparams.target_w=w;
 
@@ -553,7 +570,7 @@ static void StopMove(char *param)
     flag.angle_correct=0U;
     speedparams.correct_w=0.0f;
     flag.moving=0;
-    flag.Turn_Left_Or_Right=0U;
+    Location_deal_CancelTurn();
     printf("StopMove success\n");
 }
 
@@ -591,29 +608,26 @@ static void Gesture_Control(char *param)
     }
 }
 
-extern float turnleftangle;
 /**
-* @brief   向左转
+* @brief   向左转(相对角度)
 */
 static void Turn_Left(char *param)
 {
     float angle;
     if(sscanf(param,"%f",&angle)==1)
     {
-        turnleftangle=angle;
-        flag.Turn_Left_Or_Right=1;
+        Location_deal_StartRelTurn(angle);
     }
   }
 
-/*** @brief   向右转
+/*** @brief   向右转(相对角度)
 */
 static void Turn_Right(char *param)
 {
     float angle;
     if(sscanf(param,"%f",&angle)==1)
     {
-        turnleftangle=-angle;
-        flag.Turn_Left_Or_Right=1;
+        Location_deal_StartRelTurn(-angle);
     }
   }
 
@@ -664,6 +678,11 @@ static void Inverted_Pendulum_Prepare_cmd(char *param)
     flag.inverted_pendulum_prepare=1;
     printf("Inverted_Pendulum_Prepare_cmd success\n");
 }
+static void Inverted_Pendulum_Finish_cmd(char *param)
+{
+    flag.inverted_pendulum_pid_adjust=0;
+    printf("Inverted_Pendulum_Finish_cmd success\n");
+}
 static void Left_Depend_cmd(char *param)
 {
     flag.left_depend=1;
@@ -676,15 +695,158 @@ static void Right_Depend_cmd(char *param)
 }
 
 /**
- * @brief  打开花, 关闭花
+ * @brief  获取当前有效花瓣节拍到下一个有效节拍的间隔
+ */
+static uint16_t Flower_GetNextMoveTime(uint16_t beat_index)
+{
+    uint16_t i;
+    uint32_t current_time=beat_data.beat_data[beat_index];
+    uint32_t next_time;
+    uint32_t interval=FLOWER_MIN_SWITCH_INTERVAL_MS;
+
+    for(i=(uint16_t)(beat_index+1U);i<beat_data.beat_count;i++)
+    {
+        next_time=beat_data.beat_data[i];
+        if((next_time>current_time) &&
+           ((next_time-current_time)>=FLOWER_MIN_SWITCH_INTERVAL_MS))
+        {
+            interval=next_time-current_time;
+            break;
+        }
+    }
+
+    if(interval>0xFFFFU)
+    {
+        interval=0xFFFFU;
+    }
+    return (uint16_t)interval;
+}
+
+/**
+ * @brief  等待花瓣按上位机时间戳交替开合
+ */
+static void Flower_Beat_Cmd(char *param)
+{
+    uint16_t i;
+    uint32_t elapsed_time;
+
+    (void)param;
+    if((Beat_IsRunning()==0U) || (beat_data.beat_count<2U))
+    {
+        flower_bpm_active=0U;
+        printf("flower_bpm error: send beat_start first\n");
+        return;
+    }
+
+    for(i=1U;i<beat_data.beat_count;i++)
+    {
+        if(beat_data.beat_data[i]<=beat_data.beat_data[i-1U])
+        {
+            flower_bpm_active=0U;
+            printf("flower_bpm error: timestamps must increase\n");
+            return;
+        }
+    }
+
+    flower_beat_start_time=dance_start_time;
+    elapsed_time=HAL_GetTick()-flower_beat_start_time;
+    flower_next_beat_index=0U;
+    while((flower_next_beat_index<beat_data.beat_count) &&
+          (beat_data.beat_data[flower_next_beat_index]<=elapsed_time))
+    {
+        flower_next_beat_index++;
+    }
+
+    if(flower_next_beat_index>=beat_data.beat_count)
+    {
+        flower_bpm_active=0U;
+        printf("flower_bpm error: no upcoming timestamp\n");
+        return;
+    }
+
+    flower_have_last_beat=0U;
+    flower_last_beat_time=0U;
+    flower_last_switch_tick=0U;
+    flower_bpm_active=1U;
+    printf("flower_bpm success\n");
+}
+
+/**
+ * @brief  按有效节拍间隔非阻塞更新花瓣舵机
+ */
+void Flower_Beat_Process(void)
+{
+    uint32_t now_time;
+    uint32_t elapsed_time;
+    uint32_t beat_time;
+    uint16_t move_time=FLOWER_MIN_SWITCH_INTERVAL_MS;
+    uint16_t current_index;
+    uint8_t move_requested=0U;
+
+    if(flower_bpm_active==0U)
+    {
+        return;
+    }
+
+    now_time=HAL_GetTick();
+    elapsed_time=now_time-flower_beat_start_time;
+    while(flower_next_beat_index<beat_data.beat_count)
+    {
+        beat_time=beat_data.beat_data[flower_next_beat_index];
+        if(elapsed_time<beat_time)
+        {
+            break;
+        }
+
+        current_index=flower_next_beat_index;
+        if((flower_have_last_beat==0U) ||
+           ((beat_time>flower_last_beat_time) &&
+            ((beat_time-flower_last_beat_time)>=FLOWER_MIN_SWITCH_INTERVAL_MS) &&
+            ((now_time-flower_last_switch_tick)>=FLOWER_MIN_SWITCH_INTERVAL_MS)))
+        {
+            flower_target_open=(uint8_t)(flower_target_open==0U);
+            flower_last_beat_time=beat_time;
+            flower_last_switch_tick=now_time;
+            flower_have_last_beat=1U;
+            move_time=Flower_GetNextMoveTime(current_index);
+            move_requested=1U;
+        }
+        flower_next_beat_index++;
+    }
+
+    if(move_requested!=0U)
+    {
+        Set_Servo_pwm_TargetAngle(flower_target_open!=0U?100.0f:60.0f,
+                                  move_time);
+    }
+
+    if((flower_next_beat_index>=beat_data.beat_count) ||
+       (Beat_IsRunning()==0U))
+    {
+        flower_bpm_active=0U;
+    }
+}
+
+/**
+ * @brief  打开花并退出节拍开合
  */
 static void Flower_Open(char *param)
 {
-  Set_Servo_pwm_TargetAngle(100,1000);
+    (void)param;
+    flower_bpm_active=0U;
+    flower_target_open=1U;
+    Set_Servo_pwm_TargetAngle(100.0f,1000U);
 }
+
+/**
+ * @brief  关闭花并退出节拍开合
+ */
 static void Flower_Close(char *param)
 {
-  Set_Servo_pwm_TargetAngle(60,1000);
+    (void)param;
+    flower_bpm_active=0U;
+    flower_target_open=0U;
+    Set_Servo_pwm_TargetAngle(60.0f,1000U);
 }
 
 /**
@@ -711,6 +873,18 @@ static void Get_IMU_Yaw(char *param)
     IMU_Data_t *imu_data = IMU_GetData();
     printf("Current IMU Yaw: %.2f degrees\n", imu_data->yaw);
 }
+/**
+ * @brief   设置绝对目标yaw角度并启动转向
+ */
+static void Set_Target_Yaw(char *param)
+{
+    float yaw;
+    if(sscanf(param,"%f",&yaw)==1)
+    {
+        Location_deal_StartAbsTurn(yaw);
+        printf("target_yaw success:%.2f\n",yaw);
+    }
+}
 
 /***********************动作数组定义*********************/
 static const Action action[] = {
@@ -732,11 +906,13 @@ static const Action action[] = {
     {"init_to_half_stand",0,0,Init_To_Half_Stand_cmd},
     {"half_stand_to_init",0,0,Half_Stand_To_Init_cmd},
     {"inverted_pendulum_prepare",0,0,Inverted_Pendulum_Prepare_cmd},
+    {"inverted_pendulum_finish",0,0,Inverted_Pendulum_Finish_cmd},
     {"left_depend",0,0,Left_Depend_cmd},
     {"right_depend",0,0,Right_Depend_cmd},
     {"led_test",0,0,WS2812_TestCmd},
     {"led_fill ",1,0,WS2812_FillCmd},
     {"led_off",0,0,WS2812_OffCmd},
+    {"led_anim ", 1, 0, WS2812_AnimationCmd},
     {"pwm_servo_set ",1,0,Set_pwm_Servo_TargetAngle},
     {"opticalflow_data_reset",0,0,OpticalFlow_Data_Reset},
     {"[",1,0,Receive_Bmp},
@@ -750,6 +926,8 @@ static const Action action[] = {
     {"switch_gaitmode_to_walk",0,0,Switch_GaitMode_To_WALK},
     {"switch_gaitmode_to_turtle",0,0,Switch_GaitMode_To_TURTLE},
     {"get_imu_yaw",0,0,Get_IMU_Yaw},
+    {"target_yaw:",1,0,Set_Target_Yaw},
+    {"flower_bpm",0,0,Flower_Beat_Cmd},
     {"flower_open",0,0,Flower_Open},
     {"flower_close",0,0,Flower_Close},
     {"moveleft",0,0,MoveLeft},

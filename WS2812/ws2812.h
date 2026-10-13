@@ -138,5 +138,6 @@ void WS2812_TestCmd(char *param);
 void WS2812_FillCmd(char *param);
 void WS2812_OffCmd(char *param);
 void WS2812_Change(void);
+void WS2812_AnimationCmd(char *param);
 
 #endif /* __WS2812_H */

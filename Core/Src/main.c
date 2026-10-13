@@ -141,6 +141,13 @@ int main(void)
 HAL_UARTEx_ReceiveToIdle_DMA(&huart1,(uint8_t*) uart1_rx_buf, sizeof(uart1_rx_buf));   //开启 USART1 的 DMA 接收，接收数据存入 uart1_rx_buf
 HAL_UARTEx_ReceiveToIdle_DMA(&huart6, (uint8_t*)uart6_rx_buf, sizeof(uart6_rx_buf));   //开启 USART6 的 DMA 接收，接收数据存入 uart6_rx_buf
 
+uint8_t imu_init_count=0;
+while(imu_init_count<3)//IMU上电比STM32慢，等待3秒后初始化IMU
+{
+  HAL_Delay(1000);
+  imu_init_count++;
+  HAL_IWDG_Refresh(&hiwdg);
+}
 IMU_Init(&huart2);    //启动IMU模块DMA接收
 flag.imu_speed_displacement_active=1;    //IMU速度与位移计算任务激活标志
 
@@ -222,11 +229,19 @@ HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);//LED 点亮
     Task_Process();    //任务处理函数
 
     imu = IMU_GetData();    //获取当前IMU数据
+    /*static uint32_t last_tick =0;
+    if(HAL_GetTick()-last_tick >= 5)
+    {
+    printf("IMU yaw=%.2f\n",imu->yaw);
+    printf("now tick=%d\n",HAL_GetTick());
+  last_tick=HAL_GetTick();
+  }*/
 
     Location_deal_GetIMUData(imu);    //获取当前IMU数据
 
     BeatData* data_current = Get_BeatData();    //获取当前节拍数据指针
     Update_BeatIndex(data_current);    //更新当前节拍索引
+    Flower_Beat_Process();             //更新花瓣节拍动作
 
     Arm_Action_Process();    //机械臂动作处理函数
 

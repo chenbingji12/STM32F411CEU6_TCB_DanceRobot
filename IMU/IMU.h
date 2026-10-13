@@ -4,6 +4,7 @@
   * @brief   Yahboom九轴IMU模块串口数据解析头文件
   *          协议: 帧头0x7E 0x23, 变长帧, 小端序, 累加和校验
   *          使用USART2 (PA2/PA3), DMA循环模式 + 空闲中断接收
+  *          上电由STM32主动设置输出频率为100Hz(模块自身不保存该设置)
   ******************************************************************************
   */
 
@@ -22,6 +23,11 @@
 #define IMU_FUNC_EULER      0x26    /* 欧拉角功能字 */
 #define IMU_RAW_FRAME_LEN   0x17    /* 原始数据帧总长度(23字节) */
 #define IMU_EULER_FRAME_LEN 0x11    /* 欧拉角帧总长度(17字节) */
+#define IMU_FUNC_SET_RATE   0x60    /* 设置数据输出频率功能字 */
+#define IMU_RATE_PARAM2     0x5F    /* 频率设置固定参数2 */
+#define IMU_RATE_MIN_HZ     10U     /* 支持的最低输出频率(Hz) */
+#define IMU_RATE_MAX_HZ     100U    /* 支持的最高输出频率(Hz) */
+#define IMU_REPORT_RATE_HZ  100U    /* 上电自动设置的输出频率(Hz) */
 
 /* DMA接收缓冲区大小(字节) */
 #define IMU_DMA_BUF_SIZE    256
@@ -64,5 +70,12 @@ void IMU_RxEventCallback(uint16_t Size);
   * @retval IMU_Data_t指针
   */
 IMU_Data_t* IMU_GetData(void);
+
+/**
+  * @brief  设置IMU模块数据输出频率(阻塞发送)
+  * @param  rate_hz: 目标频率, 单位Hz, 自动钳位到10~100
+  * @retval 无
+  */
+void IMU_SetReportRate(uint8_t rate_hz);
 
 #endif /* __IMU_H */

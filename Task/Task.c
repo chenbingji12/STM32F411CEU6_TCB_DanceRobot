@@ -101,19 +101,20 @@ void Key_Event(void)
  */
 void Inverted_Pendulum_PID_Adjust(void)
 {
-    const float kp=4.0f;
-    const float ki=0.0f;
-    const float kd=0.0f;
+    const float kp=2.0f;
+    const float ki=0.1f;
+    const float kd=0.8f;
     const float dt=0.01f; // 10ms
     static float integral_pitch_sum=0.0f;
 
-    static float last_error=0.0f;
+    static uint8_t pid_started=0U;
 
     static float target_pitch=0.0f;
     
     static IMU_Data_t* imu_roll_pitch;
     imu_roll_pitch=IMU_GetData();
     float current_pitch=imu_roll_pitch->pitch;
+    float pitch_rate=imu_roll_pitch->gyro_y;  /* pitch角速度, 单位: deg/s */
 
     float error_pitch=target_pitch-current_pitch;
 
@@ -124,20 +125,17 @@ void Inverted_Pendulum_PID_Adjust(void)
 
     float correct_pitch=0.0f;
 
-    if(last_error==0.0f)
+    if(pid_started==0U)
     {
-      Servo_Write(17,600,500);
-      correct_pitch=kp*error_pitch;
-    }
-    else
-    {
-      correct_pitch=kp*error_pitch+ki*integral_pitch_sum+kd*(error_pitch-last_error)/dt;
+      Servo_Write(17,300,500);
+      pid_started=1U;
     }
 
-    correct_pitch=(correct_pitch>60.0f)?60.0f:correct_pitch;
-    correct_pitch=(correct_pitch<-60.0f)?-60.0f:correct_pitch;
+    /* D项直接用 pitch 角速度, 避免对角度做数值微分引入噪声 */
+    correct_pitch=kp*error_pitch+ki*integral_pitch_sum-kd*pitch_rate;
 
-    last_error=error_pitch;
+    correct_pitch=(correct_pitch>45.0f)?45.0f:correct_pitch;
+    correct_pitch=(correct_pitch<-45.0f)?-45.0f:correct_pitch;
 
     Servo_Write(18,(uint16_t)(500+correct_pitch/180.0f*500.0f),10);
     Servo_Write(20,(uint16_t)(500-correct_pitch/180.0f*500.0f),10);
@@ -145,8 +143,7 @@ void Inverted_Pendulum_PID_Adjust(void)
     static uint32_t last_print_time=0;
     if(HAL_GetTick()-last_print_time>=50)
     {
-      printf("pitch=%f\n",current_pitch);
-    printf("correct_pitch=%f\n",correct_pitch);
+      printf("pitch=%f,rate=%f,correct=%f\n",current_pitch,pitch_rate,correct_pitch);
     last_print_time=HAL_GetTick();
     }
 }

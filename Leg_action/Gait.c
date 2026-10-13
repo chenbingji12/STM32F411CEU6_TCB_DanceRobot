@@ -124,6 +124,8 @@ void Get_Step_Length(float v,float w,float T)
     /*
      * 根据运动方向选择参与航向角修正的腿组：
      * 前进使用物理左右腿，侧移使用前后腿，后退交换左右腿修正顺序。
+     * 侧移时的偏航修正体现为 前腿组步长 - 后腿组步长，
+     * 左移与右移的前后腿配对必须相反，否则修正方向会和前进时反号。
      */
     if(flag.walk_forward==1U)
     {
@@ -141,17 +143,17 @@ void Get_Step_Length(float v,float w,float T)
     }
     else if(flag.move_to_left==1U)
     {
-        left_front_params.step_length=left_step;
-        right_front_params.step_length=left_step;
-        left_back_params.step_length=right_step;
-        right_back_params.step_length=right_step;
-    }
-    else if(flag.move_to_right==1U)
-    {
         left_front_params.step_length=right_step;
         right_front_params.step_length=right_step;
         left_back_params.step_length=left_step;
         right_back_params.step_length=left_step;
+    }
+    else if(flag.move_to_right==1U)
+    {
+        left_front_params.step_length=left_step;
+        right_front_params.step_length=left_step;
+        left_back_params.step_length=right_step;
+        right_back_params.step_length=right_step;
     }
     else
     {
@@ -161,12 +163,12 @@ void Get_Step_Length(float v,float w,float T)
         right_front_params.step_length=right_step;
         right_back_params.step_length=right_step;
     }
-    static uint32_t last_log_time=0;
+    /*static uint32_t last_log_time=0;
     uint32_t current_time=HAL_GetTick();
     if(current_time-last_log_time>=30)
     {
     printf("w=%f\n",w);
-    }
+    }*/
 }
 
 /**
@@ -576,13 +578,13 @@ void Angle_Correct_Process(void)
     
     last_time=current_time;
 
-    if(current_time-last_log_time>=50U)//50ms打印一次
+    /*if(current_time-last_log_time>=50U)//50ms打印一次
     {
         printf("correct_w=%f,move_error=%f\n",
             speedparams.correct_w,
             angle_average);
         last_log_time=current_time;
-    }
+    }*/
 }
 
 /**

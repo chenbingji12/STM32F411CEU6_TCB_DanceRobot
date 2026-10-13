@@ -52,5 +52,6 @@ void Gamepad_Control(char *param);
 void Single_Action(char *name);
 
 void Receive_Bmp(char *param);
+void Flower_Beat_Process(void);
 
 #endif

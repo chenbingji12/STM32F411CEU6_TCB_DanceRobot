@@ -4,6 +4,7 @@
   * @brief   Yahboom九轴IMU模块串口数据解析实现
   *          协议: 帧头0x7E 0x23, 变长帧, 小端序float, 累加和校验
   *          接收方式: USART2 DMA循环模式 + 空闲中断
+  *          上电时由STM32主动发送 0x60 命令将输出频率设为100Hz, 模块自身不保存该设置
   *
   * 原始数据帧格式 (功能字0x04, 共23字节):
   *   [0]  0x7E   帧头1
@@ -73,6 +74,9 @@ void IMU_Init(UART_HandleTypeDef *huart)
     memset(&s_imu_data, 0, sizeof(s_imu_data));
     memset(s_dma_buf, 0, sizeof(s_dma_buf));
 
+    /* 上电时先把模块输出频率设为100Hz(模块自身不保存) */
+    IMU_SetReportRate(IMU_REPORT_RATE_HZ);
+
     /* 启动DMA+空闲中断接收 (与UART1/6保持一致的模式) */
     HAL_UARTEx_ReceiveToIdle_DMA(s_huart, s_dma_buf, IMU_DMA_BUF_SIZE);
 }
@@ -98,6 +102,40 @@ void IMU_RxEventCallback(uint16_t Size)
 IMU_Data_t* IMU_GetData(void)
 {
     return &s_imu_data;
+}
+
+/**
+  * @brief  设置IMU模块数据输出频率(阻塞发送)
+  *         帧格式: 7E 23 07 60 <rate> 5F <checksum>, 模块无返回
+  * @param  rate_hz: 目标频率, 单位Hz, 自动钳位到10~100
+  * @retval 无
+  */
+void IMU_SetReportRate(uint8_t rate_hz)
+{
+    uint8_t cmd[7];
+
+    if (s_huart == NULL) {
+        return;
+    }
+
+    /* 频率钳位到协议支持范围 */
+    if (rate_hz < IMU_RATE_MIN_HZ) {
+        rate_hz = IMU_RATE_MIN_HZ;
+    }
+    else if (rate_hz > IMU_RATE_MAX_HZ) {
+        rate_hz = IMU_RATE_MAX_HZ;
+    }
+
+    cmd[0] = IMU_HDR1;
+    cmd[1] = IMU_HDR2;
+    cmd[2] = 0x07;                  /* 帧总长度 */
+    cmd[3] = IMU_FUNC_SET_RATE;
+    cmd[4] = rate_hz;
+    cmd[5] = IMU_RATE_PARAM2;
+    cmd[6] = IMU_CalcChecksum(cmd, 6);
+
+    /* 模块对该命令无返回, 发送结果不做判定 */
+    (void)HAL_UART_Transmit(s_huart, cmd, sizeof(cmd), 100U);
 }
 
 /* Private functions ---------------------------------------------------------*/

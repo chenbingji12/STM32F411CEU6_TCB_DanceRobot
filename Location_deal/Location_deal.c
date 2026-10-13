@@ -48,23 +48,70 @@ static float Wrap_Yaw_Delta(float angle)
 
 extern volatile Flag flag;
 float turnleftangle=0.0f;
+
+/* 转向任务状态(提到文件级, 便于启动/取消/到位时统一复位) */
+static float turn_start_yaw=0.0f;    //本次转向的起始yaw角度
+static float turn_last_error=0.0f;   //上一次的转向误差
+static uint8_t turn_abs_mode=0U;     //1=绝对角度模式, 0=相对角度模式
+static float turn_abs_yaw=0.0f;      //绝对角度模式下的目标yaw角度
+
+/**
+ * @brief   复位转向任务的内部状态(不改动flag)
+ * @retval  无
+ */
+static void Turn_State_Reset(void)
+{
+    turn_start_yaw=0.0f;
+    turn_last_error=0.0f;
+    turn_abs_mode=0U;
+    turn_abs_yaw=0.0f;
+}
+
+/**
+ * @brief   启动相对角度转向(以当前yaw为起点)
+ * @param   delta_deg: 相对转角, 单位: 度, 正为左转
+ * @retval  无
+ */
+void Location_deal_StartRelTurn(float delta_deg)
+{
+    Turn_State_Reset();
+    turnleftangle=delta_deg;
+    turn_abs_mode=0U;
+    flag.Turn_Left_Or_Right=1U;
+}
+
+/**
+ * @brief   启动绝对角度转向(直接以目标yaw为准)
+ * @param   target_deg: 目标yaw角度, 单位: 度
+ * @retval  无
+ */
+void Location_deal_StartAbsTurn(float target_deg)
+{
+    Turn_State_Reset();
+    turn_abs_yaw=target_deg;
+    turn_abs_mode=1U;
+    flag.Turn_Left_Or_Right=1U;
+}
+
+/**
+ * @brief   取消转向任务并复位内部状态
+ * @retval  无
+ */
+void Location_deal_CancelTurn(void)
+{
+    Turn_State_Reset();
+    flag.Turn_Left_Or_Right=0U;
+}
+
 void Turn_Left_Or_Right_Task(void)
 {
     static float kp=0.12f;
     static float kd=0.0f;
     static float dt=0.01f;
-    static float last_error=0.0f;
-    static float start_yaw=0.0f;
     static float target_yaw=0.0f;
     static float current_yaw=0.0f;
     static IMU_Data_t* imu_only_yaw;
     imu_only_yaw=IMU_GetData();
-
-    //滑动平均滤波
-    static float move_average_yaw[2]={0.0f};
-    static uint8_t move_average_index=0;
-    static uint8_t move_average_count=0;
-    static float error_sum=0.0f;
 
     //一阶低通滤波
     const float k=0.9f;
@@ -72,19 +119,26 @@ void Turn_Left_Or_Right_Task(void)
     float error=0.0f;
 
     //如果是第一次执行任务，初始化开始角度
-    if(start_yaw==0.0f)
+    if(turn_start_yaw==0.0f)
     {
-        start_yaw=imu_only_yaw->yaw;
-        target_yaw=Wrap_Yaw_Delta(start_yaw+turnleftangle);
-        printf("start_yaw=%f,target_yaw=%f\n",start_yaw,target_yaw);
+        turn_start_yaw=imu_only_yaw->yaw;
+        if(turn_abs_mode!=0U)
+        {
+            target_yaw=Wrap_Yaw_Delta(turn_abs_yaw);
+        }
+        else
+        {
+            target_yaw=Wrap_Yaw_Delta(turn_start_yaw+turnleftangle);
+        }
+        printf("start_yaw=%f,target_yaw=%f\n",turn_start_yaw,target_yaw);
     }
 
     current_yaw=imu_only_yaw->yaw;
 
-    if(last_error!=0.0f)
+    if(turn_last_error!=0.0f)
     {
     float current_error=Wrap_Yaw_Delta(target_yaw-current_yaw);
-    float filtered_error=current_error*k+last_error*(1-k);
+    float filtered_error=current_error*k+turn_last_error*(1-k);
     error=filtered_error;
     }
     else
@@ -92,55 +146,22 @@ void Turn_Left_Or_Right_Task(void)
         error=Wrap_Yaw_Delta(target_yaw-current_yaw);
     }
 
-    /*move_average_yaw[move_average_index]=Wrap_Yaw_Delta(target_yaw-current_yaw);
-    move_average_index=(move_average_index+1)%2;
-    if(move_average_count<2)
-    {
-        move_average_count++;
-        for(uint8_t i=0;i<move_average_count;i++)
-        {
-            error_sum+=move_average_yaw[i];
-        }
-        error=error_sum/move_average_count;
-        error_sum=0.0f;
-    }
-    else
-    {
-        for(uint8_t i=0;i<2;i++)
-        {
-            error_sum+=move_average_yaw[i];
-        }
-        error=error_sum/2.0f;
-        error_sum=0.0f;
-    }*/
-
-    //计算误差
-    //float error=Wrap_Yaw_Delta(target_yaw-move_average_value);
-
     //此次误差与上次误差符号相反，说明已经过了目标角度，停止转动
-    if((last_error > 0.0f && error < 0.0f) ||
-     (last_error < 0.0f && error > 0.0f))
+    if((turn_last_error > 0.0f && error < 0.0f) ||
+     (turn_last_error < 0.0f && error > 0.0f))
     {
         flag.Turn_Left_Or_Right=0U;
         flag.walk_forward=0U;
         flag.moving=0;
-        start_yaw=0.0f;
-        last_error=0.0f;
-        error_sum=0.0f;
-        move_average_count=0;
-        move_average_index=0;
-        for(uint8_t i=0;i<2;i++)
-        {
-            move_average_yaw[i]=0.0f;
-        }
+        Turn_State_Reset();
         printf("Turn_Left_Or_Right_Task finish\n");//向香橙派反馈
     }
     else if(fabs(error)>1.5f)
     {
         float pid_correct_w=0.0f;
-        if(last_error!=0.0f)
+        if(turn_last_error!=0.0f)
         {
-            pid_correct_w=kp*error+kd*(error-last_error)/dt;
+            pid_correct_w=kp*error+kd*(error-turn_last_error)/dt;
         }
         else
         {
@@ -157,7 +178,7 @@ void Turn_Left_Or_Right_Task(void)
         Get_Step_Length(0.0f,-pid_correct_w,1.5f);
         flag.moving=1;
         flag.walk_forward=1;
-        last_error=error;
+        turn_last_error=error;
 
         printf("current_yaw=%f,error=%f\n",current_yaw,error);
     }
@@ -166,16 +187,7 @@ void Turn_Left_Or_Right_Task(void)
         flag.Turn_Left_Or_Right=0U;
         flag.walk_forward=0U;
         flag.moving=0;
-        start_yaw=0.0f;
-        last_error=0.0f;
-        error_sum=0.0f;
-        move_average_count=0;
-        move_average_index=0;
-        for(uint8_t i=0;i<2;i++)
-        {
-            move_average_yaw[i]=0.0f;
-        }
-        
+        Turn_State_Reset();
         printf("Turn_Left_Or_Right_Task finish\n");
     }
 }

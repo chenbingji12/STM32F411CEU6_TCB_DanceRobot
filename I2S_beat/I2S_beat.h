@@ -58,7 +58,7 @@ void I2S_Beat_Reset(void);
 
 /*****************************************从上位机接收的节拍数据*****************************************/
 typedef struct {
-    uint32_t beat_data[500]; // 存储节拍的数组，最多存储500个节拍
+    uint32_t beat_data[600]; // 存储节拍的数组，最多存储600个节拍
     uint16_t beat_count;     // 节拍数量
     uint16_t index;          // 当前节拍索引
 } BeatData;
